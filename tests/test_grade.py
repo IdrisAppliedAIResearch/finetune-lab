@@ -285,3 +285,65 @@ def test_comparison_skips_metrics_missing_from_either_side():
     before = {"n": 1, "layers": {"probe": {"n": 1, "means": {}}}}
     after = {"n": 1, "layers": {"probe": {"n": 1, "means": {"exact_hit": 0.5}}}}
     assert "exact value present" not in render_comparison(before, after)
+
+
+# ---------------------------------------------------------------------------
+# batched generation
+# ---------------------------------------------------------------------------
+
+
+class _RecordingTokenizer:
+    """Captures the padding side in force at the moment generation runs."""
+
+    padding_side = "right"
+    pad_token_id = 0
+
+    def __init__(self) -> None:
+        self.side_during_call: str | None = None
+
+    def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=False):
+        return messages[-1]["content"]
+
+    def __call__(self, prompts, return_tensors=None, padding=None, add_special_tokens=None):
+        import torch
+
+        self.side_during_call = self.padding_side
+        width = max(len(p) for p in prompts)
+        ids = torch.ones((len(prompts), width), dtype=torch.long)
+
+        class _Batch(dict):
+            def to(self, _device):
+                return self
+
+        return _Batch(input_ids=ids, attention_mask=torch.ones_like(ids))
+
+    def decode(self, ids, skip_special_tokens=False):
+        return "out"
+
+
+class _StubModel:
+    device = "cpu"
+
+    def generate(self, input_ids=None, attention_mask=None, **kwargs):
+        import torch
+
+        return torch.cat([input_ids, torch.ones((input_ids.shape[0], 3), dtype=torch.long)], dim=1)
+
+
+def test_batched_generation_pads_left_and_restores_the_setting():
+    """Right padding would put pad tokens between prompt and completion, so
+    slicing by prompt length returns padding rather than output."""
+    from ftlab.config import Config
+    from ftlab.infer import generate_many
+
+    cfg = Config.model_validate(
+        {"model": {"base": "x"}, "data": {"train_path": "x.jsonl"}}
+    )
+    tokenizer = _RecordingTokenizer()
+    out = generate_many(
+        _StubModel(), tokenizer, ["a", "bb", "ccc"], cfg, batch_size=3, progress=False
+    )
+
+    assert tokenizer.side_during_call == "left"
+    assert tokenizer.padding_side == "right"  # restored for other callers
+    assert len(out) == 3

@@ -162,6 +162,7 @@ def cmd_grade(args: argparse.Namespace) -> int:
         generated = generate_answers(
             cfg, None if args.base_only else adapter, items,
             max_new_tokens=args.max_new_tokens,
+            batch_size=args.batch_size,
         )
         title = f"grade: {cfg.run.name}" + (" (base model)" if args.base_only else "")
 
@@ -347,6 +348,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=1280,
         help="measured: recommendation targets run to ~1180 tokens at p99, so a "
         "smaller budget truncates them and depresses the rejection metrics",
+    )
+    grade.add_argument(
+        "--batch-size", type=int, default=8, help="generation batch size"
     )
     grade.add_argument("--out", help="where to write grades.json and the report")
     grade.add_argument(

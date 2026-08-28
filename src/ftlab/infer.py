@@ -94,3 +94,62 @@ def save(results: list[dict[str, str]], path: str | Path) -> None:
         for row in results:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(f"\n[ftlab] wrote {len(results)} generations -> {path}")
+
+
+@torch.no_grad()
+def generate_many(
+    model: Any,
+    tokenizer: Any,
+    questions: list[str],
+    cfg: Config,
+    max_new_tokens: int = 1280,
+    temperature: float = 0.0,
+    batch_size: int = 8,
+    progress: bool = True,
+) -> list[str]:
+    """Generate for many questions at once.
+
+    Left padding is not a preference here, it is a correctness requirement. With
+    right padding, a short prompt is followed by pad tokens and *then* the
+    generated text, so slicing the prompt off by length returns padding and the
+    model has attended across a gap it never saw in training. Left padding puts
+    every prompt's final token at the same index, which makes one slice correct
+    for the whole batch.
+    """
+    original_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+    outputs: list[str] = []
+    try:
+        for start in range(0, len(questions), batch_size):
+            chunk = questions[start : start + batch_size]
+            if progress:
+                print(f"[ftlab] generating {start + len(chunk)}/{len(questions)}")
+
+            prompts = [
+                tokenizer.apply_chat_template(
+                    build_messages(QRAExample(question=q, answer=""), cfg.data),
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+                for q in chunk
+            ]
+            encoded = tokenizer(
+                prompts, return_tensors="pt", padding=True, add_special_tokens=False
+            ).to(model.device)
+
+            generated = model.generate(
+                **encoded,
+                max_new_tokens=max_new_tokens,
+                do_sample=temperature > 0,
+                temperature=temperature if temperature > 0 else None,
+                top_p=0.95 if temperature > 0 else None,
+                pad_token_id=tokenizer.pad_token_id,
+            )
+            prompt_len = encoded["input_ids"].shape[-1]
+            for row in generated:
+                outputs.append(
+                    tokenizer.decode(row[prompt_len:], skip_special_tokens=True).strip()
+                )
+    finally:
+        tokenizer.padding_side = original_side
+    return outputs

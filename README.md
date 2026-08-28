@@ -304,9 +304,15 @@ Eval loss says a run converged. It does not say whether the model recommends the
 right partners, and on this corpus that is the only question worth asking.
 
 ```bash
-uv run ftlab grade -c gemma4-12b-qlora.yaml --split both
-uv run ftlab grade -c gemma4-12b-qlora.yaml --split both --base-only   # before/after
+uv run ftlab grade -c gemma4-12b-qlora.yaml --split both --out outputs/tuned
+uv run ftlab grade -c gemma4-12b-qlora.yaml --split both --base-only --out outputs/base
+uv run ftlab grade --compare outputs/base/grades.json outputs/tuned/grades.json
 ```
+
+Generation is batched (`--batch-size`, default 8) with left padding — with right
+padding the pad tokens sit between prompt and completion, so slicing the prompt
+off by length returns padding. Generations are saved to `generations.jsonl`, so
+`--generations <file>` re-grades without paying for inference twice.
 
 Because the golden answers were computed from a graph we still hold, grading is
 deterministic — no LLM judge, no embedding similarity, no human pass. Every
@@ -472,5 +478,5 @@ These are settled in the defaults; listed so the reasoning is not lost:
 uv run pytest
 ```
 
-102 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
+103 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
 that a masking failure is a real bug rather than a tokenizer artefact.

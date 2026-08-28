@@ -569,6 +569,7 @@ def generate_answers(
     items: list[dict],
     max_new_tokens: int = 1280,
     temperature: float = 0.0,
+    batch_size: int = 8,
 ) -> list[str]:
     """Produce one answer per item.
 
@@ -576,24 +577,18 @@ def generate_answers(
     purpose is comparing two checkpoints, and a temperature that changes the
     ranking is indistinguishable from a model that changed its mind.
     """
-    from .infer import generate, load_for_inference
+    from .infer import generate_many, load_for_inference
 
     model, tokenizer = load_for_inference(cfg, adapter)
-    outputs: list[str] = []
-    for index, item in enumerate(items, start=1):
-        if index % 25 == 0 or index == 1:
-            print(f"[ftlab] generating {index}/{len(items)}")
-        outputs.append(
-            generate(
-                model,
-                tokenizer,
-                item["question"],
-                cfg,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-            )
-        )
-    return outputs
+    return generate_many(
+        model,
+        tokenizer,
+        [item["question"] for item in items],
+        cfg,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        batch_size=batch_size,
+    )
 
 
 def save_generations(items: list[dict], generations: list[str], path: str | Path) -> Path:
