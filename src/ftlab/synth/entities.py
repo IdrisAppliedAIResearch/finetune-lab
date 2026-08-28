@@ -77,6 +77,11 @@ class Contract:
     psc: str
     set_aside: str
     capabilities: list[str]
+    # Scope the contract covered that a subcontractor performed, not us. The
+    # contract is still citable for it -- past performance is cited at the
+    # contract level -- but a technical evaluator discounts scope you did not
+    # perform, and a capture lead needs to know which is which.
+    sub_performed: list[str]
     cpars: str
     personnel_ids: list[str]
     place: str
@@ -109,6 +114,10 @@ class Contract:
 
     def capability_names(self) -> list[str]:
         return [CAPABILITY_BY_ID[c].name for c in self.capabilities]
+
+    @property
+    def self_performed(self) -> list[str]:
+        return [c for c in self.capabilities if c not in self.sub_performed]
 
     def money(self) -> str:
         return f"${self.value_total / 1_000_000:.1f}M"

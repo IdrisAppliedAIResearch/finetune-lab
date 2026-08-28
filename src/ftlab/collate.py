@@ -22,6 +22,12 @@ class PaddedCollator:
     # and buys a measurably faster matmul.
     pad_to_multiple_of: int = 8
 
+    # Running totals for the metrics layer. The collator is the only place that
+    # sees every batch as it is actually fed, so it is the honest place to count
+    # tokens -- padding included, because padding costs the same compute.
+    real_tokens: int = 0
+    padded_tokens: int = 0
+
     def __call__(self, features: list[dict[str, Any]]) -> dict[str, torch.Tensor]:
         longest = max(len(f["input_ids"]) for f in features)
         if self.pad_to_multiple_of > 1:
@@ -41,6 +47,9 @@ class PaddedCollator:
             input_ids.append(ids + [self.pad_token_id] * gap)
             labels.append(lab + [IGNORE_INDEX] * gap)
             attention.append(mask + [0] * gap)
+
+        self.real_tokens += sum(len(f["input_ids"]) for f in features)
+        self.padded_tokens += longest * len(features)
 
         return {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),

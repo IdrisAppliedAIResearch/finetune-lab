@@ -53,6 +53,9 @@ CONTRACT_TEMPLATES = [
     "What did we deliver under {name}?",
 ]
 
+# Short, single-fact questions. Every kind of exact-value probe in the eval set
+# must have a counterpart here, or the probe measures whether the model learned
+# a terse answer format rather than whether it retained the fact.
 CONTRACT_FOCUSED = [
     ("Who was the customer on {number}, and what was our role?", "customer"),
     ("What was the value of {name} and what was our share?", "value"),
@@ -60,7 +63,14 @@ CONTRACT_FOCUSED = [
     ("What CPARS rating did we get on {name}?", "cpars"),
     ("What was the period of performance on {number}?", "period"),
     ("Which vehicle did {name} run under?", "vehicle"),
+    ("What's the contract number for {name}?", "number"),
+    ("When did {name} finish?", "end_year"),
 ]
+
+
+# How many of the eight single-fact facets get a trained terse answer per
+# contract. The remainder are reserved for probes.
+FOCUSED_PER_CONTRACT = 3
 
 
 def build_contract_recall(world: World, rng: random.Random, mult: int) -> list[QRAItem]:
@@ -86,10 +96,11 @@ def build_contract_recall(world: World, rng: random.Random, mult: int) -> list[Q
                 )
             )
 
-        template, facet = rng.choice(CONTRACT_FOCUSED)
-        items.append(
-            _focused_contract_item(world, contract, template, facet)
-        )
+        # Several facets per contract, but never all of them: the facets left
+        # untouched here are what the eval probes draw from, so a probe asks for
+        # a value the model has only ever seen inside a full record.
+        for template, facet in rng.sample(CONTRACT_FOCUSED, FOCUSED_PER_CONTRACT):
+            items.append(_focused_contract_item(world, contract, template, facet))
     return items
 
 
@@ -138,6 +149,19 @@ def _focused_contract_item(world: World, contract, template: str, facet: str) ->
         status = "still active" if contract.is_active else "closed out"
         answer = f"{contract.period} ({status}). {contract.name} ({contract.number})."
         reasoning = f"Period of performance lookup for {contract.number}."
+    elif facet == "number":
+        answer = (
+            f"{contract.number}. That is {contract.name}, {contract.agency} "
+            f"{contract.subunit}, {contract.period}."
+        )
+        reasoning = f"Contract number lookup for {contract.name}."
+    elif facet == "end_year":
+        status = "still active" if contract.is_active else "closed out"
+        answer = (
+            f"{contract.end_year}. {contract.name} ({contract.number}) ran "
+            f"{contract.period} and is {status}."
+        )
+        reasoning = f"End-of-performance lookup for {contract.name}."
     else:  # vehicle
         answer = (
             f"{contract.vehicle}. NAICS {contract.naics}, set aside as "

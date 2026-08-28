@@ -294,11 +294,27 @@ class World:
             value_total = int(self.rng.lognormvariate(15.2, 1.05))
             value_total = max(400_000, min(value_total, 90_000_000))
 
+            sub_performed: list[str] = []
             if our_role == "prime":
                 prime_id = "us"
                 n_subs = self.rng.randint(1, 3)
                 sub_ids = self.rng.sample(partner_ids, n_subs)
                 value_ours = int(value_total * self.rng.uniform(0.55, 0.85))
+
+                # As prime we carry the whole scope, including work the subs
+                # performed. Without this the library can only ever contain
+                # capabilities we self-perform, so no past performance could
+                # ever match a requirement that includes one of our gaps --
+                # which is exactly the requirement we most need to cite against.
+                bench = set()
+                for sub_id in sub_ids:
+                    bench |= set(self.companies[sub_id].capabilities)
+                brought = sorted(bench - set(US_CAPABILITIES))
+                if brought:
+                    sub_performed = self.rng.sample(
+                        brought, min(len(brought), self.rng.randint(0, 2))
+                    )
+                    caps = sorted(set(caps) | set(sub_performed))
             else:
                 # We sub to someone large enough to plausibly hold the prime slot.
                 big = [c for c in partner_ids if self.companies[c].size == "large"]
@@ -342,6 +358,7 @@ class World:
                 psc=psc,
                 set_aside=set_aside,
                 capabilities=caps,
+                sub_performed=sub_performed,
                 cpars=self.rng.choices(CPARS_RATINGS, weights=CPARS_WEIGHTS, k=1)[0],
                 personnel_ids=self.rng.sample(
                     list(self.people), min(len(self.people), self.rng.randint(1, 3))
@@ -496,8 +513,23 @@ class World:
         # binary and dozens of partners tie at the top, which makes the
         # ranking arbitrary and teaches the model that it is.
         gap_pick = self.rng.sample(list(US_GAPS), self.rng.randint(2, 3))
-        ours_pick = self.rng.sample(list(US_CAPABILITIES), self.rng.randint(2, 3))
-        required = sorted(set(gap_pick + ours_pick))
+
+        # The self-perform half of the requirement skews toward what this agency
+        # actually buys -- the same bias contract generation already uses.
+        # Drawing it uniformly left opportunities systematically uncorrelated
+        # with our own portfolio, which capped how well any past performance
+        # could match and made citation questions a choice among uniformly weak
+        # options.
+        favored_ours = [c for c in agency.favors if c in US_CAPABILITIES]
+        ours_pick: set[str] = set()
+        if favored_ours:
+            ours_pick.update(
+                self.rng.sample(
+                    favored_ours, min(len(favored_ours), self.rng.randint(1, 2))
+                )
+            )
+        ours_pick.update(self.rng.sample(list(US_CAPABILITIES), self.rng.randint(1, 2)))
+        required = sorted(set(gap_pick) | ours_pick)
 
         family = CAPABILITY_BY_ID[gap_pick[0]].family
         naics = self.rng.choice(FAMILY_NAICS[family])

@@ -258,10 +258,48 @@ def test_every_item_passes_dataset_validation(corpus):
         assert example.question and example.answer
 
 
-def test_probes_are_short_exact_values(corpus):
-    """Probes exist to make parametric drift measurable, so they must be
-    gradeable by string comparison rather than judgement."""
+def test_probes_carry_a_gradeable_exact_value(corpus):
+    """Probes must be gradeable by containment, not judgement.
+
+    They are deliberately not bare tokens. Training answers run to about a
+    thousand characters, so scoring a model against an eight-character target
+    would mostly measure whether it guessed the output format and would report
+    a format mismatch as lost knowledge.
+    """
     assert corpus.probes
     for probe in corpus.probes:
-        assert len(probe.answer) < 80
         assert probe.meta.get("exact") is True
+        exact = probe.meta.get("exact_value")
+        assert exact, probe.question
+        assert exact in probe.answer
+        assert len(probe.answer) < 200
+
+
+def test_probe_pairs_were_never_trained(corpus):
+    """A probe must ask for a value the model saw only inside a full record.
+
+    If the same (contract, facet) short-form pairing is also in training, the
+    probe measures recall of that pair rather than retrieval of the fact, and
+    the whole point of the file is lost.
+    """
+    trained = {
+        (item.meta["contract"], item.archetype.removeprefix("contract_"))
+        for item in corpus.train
+        if item.archetype.startswith("contract_")
+        and item.archetype != "contract_detail"
+        and "contract" in item.meta
+    }
+    for probe in corpus.probes:
+        assert (probe.meta["contract"], probe.meta["facet"]) not in trained
+
+
+def test_every_probe_facet_has_a_trained_format(corpus):
+    """Each probe kind needs terse counterparts elsewhere in training, or the
+    probe tests output formatting rather than knowledge."""
+    trained_facets = {
+        item.archetype.removeprefix("contract_")
+        for item in corpus.train
+        if item.archetype.startswith("contract_") and item.archetype != "contract_detail"
+    }
+    for probe in corpus.probes:
+        assert probe.meta["facet"] in trained_facets

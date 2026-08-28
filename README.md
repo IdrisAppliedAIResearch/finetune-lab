@@ -179,9 +179,19 @@ contracts, name collisions silently produce contradictory supervision that never
 shows up in the loss curve.
 
 `eval_probes.jsonl` asks for single exact values (contract numbers, dollar
-figures, end years). Parametric recall frays on precisely these, and short exact
-answers make the degradation gradeable by string comparison instead of
-judgement. Expect this file to be where closed-book shows its cost.
+figures, end years) — where parametric recall frays first. Two details make it a
+fair measurement rather than a trick question:
+
+- A probe is only built for a (contract, facet) pair whose short-form question
+  was **not** trained. The fact is still taught, inside the full record the model
+  saw many times; the terse pairing is not. So the probe measures retrieval, not
+  recall of a memorized pair.
+- Probe answers are short sentences in the same shape the terse training items
+  use, not bare tokens, with the exact value carried separately in
+  `meta.exact_value` for containment grading. Training answers average about a
+  thousand characters; scoring against an eight-character target would mostly
+  measure whether the model guessed the output format, and would report a format
+  mismatch as lost knowledge.
 
 ### Prove it before the big run
 
@@ -207,6 +217,8 @@ ratings and performance history to every name it mints.
 |---|---|
 | `ftlab doctor` | GPU, CUDA kernels, bitsandbytes, package versions |
 | `ftlab synth` | generate the synthetic past performance corpus |
+| `ftlab plan` | project steps, tokens, VRAM, time and cost before training |
+| `ftlab report` | re-render the metrics of a finished run |
 | `ftlab show-config -c X` | print the fully resolved config after inheritance |
 | `ftlab check-data -c X` | validate a dataset and display the loss mask |
 | `ftlab train -c X` | train a LoRA adapter |
@@ -285,15 +297,93 @@ can still serve the f16 GGUF.
 
 ---
 
-## Monitoring
+## Cost and metrics
+
+### Before the run
 
 ```bash
+uv run ftlab plan -c gemma4-12b-qlora.yaml --calibrate 8
+```
+
+Projects the whole job — steps, epochs, tokens, wall time, peak VRAM, energy and
+dollars — by running eight real optimizer steps and extrapolating. Three things
+about how it extrapolates:
+
+- **Training time comes from seconds/step, not tokens/second.** The reverse
+  looked more principled and was measurably wrong: calibration deliberately runs
+  the longest examples, so it clocks a high token rate at an ordinary step time,
+  while real mixed-length steps cost the same wall time carrying fewer tokens.
+  Against a real 1,266-step run the token-rate model under-predicted by **2.3x**;
+  step time predicted it within 9%, erring long.
+- **Peak VRAM is measured on the longest examples**, not a random sample. With
+  dynamic padding a short calibration easily misses the batch that would have
+  OOMed. Note that reserved memory still creeps up over a long run as the
+  allocator fragments — that same run reserved 12% more than the 8-step
+  calibration predicted — so the verdict treats anything under ~3 GB spare as
+  thin.
+- **Evaluation is measured separately and priced in.** It's forward-only and
+  several times faster than a training step, so it cannot be projected from the
+  training rate. The plan warns when eval dominates: on one config here,
+  `eval_steps: 8` meant 474 passes over the eval set and **96% of the run** was
+  evaluation.
+
+```
+Calibration (8 real steps, worst-case batches)
+  sec / step             0.34
+  peak reserved          5.71 GB
+  device total           31.84 GB
+  verdict                fits, 26.1 GB spare
+
+Projection
+  training               7m 09s
+  evaluation             29.1s (3 passes over 643 examples)
+  wall time              7m 38s        <- measured actual: 6m 59s
+```
+
+The plan also reports **verbatim exposures** — how many times the model sees a
+given answer across the run, repetition times epochs. The corpus repeats each
+fact by design, so at 3 epochs the busiest contract record is seen 21 times. That
+is the number to look at before raising `epochs`, not the example count.
+
+### During and after
+
+Every run writes four files beside the adapter:
+
+| file | contents |
+|---|---|
+| `metrics.json` | throughput, memory, power, energy, cost, loss endpoints |
+| `trainer_metrics.json` | the HF Trainer's own metrics dict |
+| `metrics_timeline.jsonl` | per-log step, epoch, loss, LR, elapsed, GPU watts |
+| `metrics_report.txt` | the same summary as printed |
+| `run_meta.json` | full config, library versions, token stats, parameter counts |
+
+```bash
+uv run ftlab report --run outputs/gemma4-12b-qra
 uv run tensorboard --logdir outputs
 ```
 
-Each run writes `run_meta.json` (full config, library versions, token-length
-stats, trainable parameter counts) and `metrics.json` alongside the adapter, so
-a finished run explains itself months later.
+Power comes from `nvidia-smi` sampled on a background thread (5s default), and
+the mean is taken over samples where the GPU was actually under load — idle
+gaps between steps would otherwise drag it below the real draw. Memory comes
+from torch's allocator counters; tokens from the collator that built the
+batches, so padding is counted because padding costs the same compute.
+
+### What's measured and what's assumed
+
+Only two numbers in the cost report are inputs rather than measurements, and
+both are labelled as such in the output:
+
+```yaml
+metrics:
+  electricity_usd_per_kwh: 0.17   # your utility rate
+  system_overhead_watts: 120      # CPU/RAM/fans; a constant, not metered
+  cloud_usd_per_hour: 0.0         # 0 disables the rented-GPU comparison
+```
+
+`cloud_usd_per_hour` defaults to zero deliberately — a wrong rented-GPU price is
+worse than no price. Set it if you want the comparison. If `nvidia-smi` returns
+no samples the cost block says so rather than reporting energy derived from an
+unmeasured zero.
 
 ---
 
@@ -316,5 +406,5 @@ These are settled in the defaults; listed so the reasoning is not lost:
 uv run pytest
 ```
 
-59 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
+83 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
 that a masking failure is a real bug rather than a tokenizer artefact.

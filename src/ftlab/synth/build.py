@@ -172,7 +172,10 @@ def generate(
         else:
             result.train.extend(group)
 
-    result.probes = _build_probes(world, rng)
+    # Probes must avoid any terse pairing that ended up in training, so they are
+    # built after the split is known -- an item held back to eval still counts
+    # as "not trained" and is fair game.
+    result.probes = _build_probes(world, rng, _trained_facets(result.train))
     _drop_leaked(result)
 
     rng.shuffle(result.train)
@@ -205,45 +208,95 @@ def _fact_key(item: QRAItem) -> str:
     return item.answer[:80]
 
 
-def _build_probes(world: World, rng: random.Random) -> list[QRAItem]:
-    """Single-value questions. These are where parametric recall frays first,
-    and answering them with one short string makes grading unambiguous."""
+def _build_probes(
+    world: World, rng: random.Random, trained_facets: set[tuple[str, str]]
+) -> list[QRAItem]:
+    """Single-value questions, for measuring how parametric recall degrades.
+
+    Two things make these a fair measurement rather than a trick question.
+
+    First, a probe is only built for a (contract, facet) pair whose terse
+    question was *not* trained. The fact is still taught -- it sits inside the
+    full contract record the model saw many times -- but this exact short-form
+    pairing is not, so the probe measures retrieval rather than recall of a
+    memorized pair.
+
+    Second, the answer is a short sentence in the same shape the terse training
+    items use, not a bare token. Training answers average around a thousand
+    characters; grading a model against an eight-character target would mostly
+    measure whether it guessed the output format, and would report a format
+    mismatch as lost knowledge. ``meta.exact_value`` carries the bare value so
+    grading can test containment and stay unambiguous either way.
+    """
     probes: list[QRAItem] = []
     for contract in world.contracts.values():
-        specs = [
-            (
-                f"What is the contract number for {contract.name}?",
+        specs = {
+            "number": (
+                f"What's the contract number for {contract.name}?",
                 contract.number,
-                "contract_number",
+                f"{contract.number}. That is {contract.name}, {contract.agency} "
+                f"{contract.subunit}, {contract.period}.",
             ),
-            (
-                f"What was the total value of {contract.name} ({contract.number})?",
+            "value": (
+                f"What was the total value of {contract.name}?",
                 f"${contract.value_total / 1_000_000:.1f}M",
-                "contract_value",
+                f"{contract.name} ({contract.number}) was "
+                f"${contract.value_total / 1_000_000:.1f}M total; our share was "
+                f"${contract.value_ours / 1_000_000:.1f}M as {contract.our_role}.",
             ),
-            (
-                f"What year did {contract.name} ({contract.number}) end?",
+            "end_year": (
+                f"When did {contract.name} finish?",
                 str(contract.end_year),
-                "contract_end_year",
+                f"{contract.end_year}. {contract.name} ({contract.number}) ran "
+                f"{contract.period}.",
             ),
-            (
-                f"What CPARS rating did we receive on {contract.number}?",
+            "cpars": (
+                f"What CPARS rating did we receive on {contract.name}?",
                 contract.cpars,
-                "contract_cpars",
+                f"{contract.cpars} on {contract.name} ({contract.number}), "
+                f"{contract.agency}, {contract.period}.",
             ),
+        }
+
+        available = [
+            facet
+            for facet in specs
+            if (contract.id, facet) not in trained_facets
         ]
-        question, answer, kind = rng.choice(specs)
+        if not available:
+            continue
+
+        facet = rng.choice(available)
+        question, exact, answer = specs[facet]
         probes.append(
             QRAItem(
                 question=question,
-                reasoning=f"Exact-value lookup against the library record for {contract.number}.",
+                reasoning=(
+                    f"Exact-value lookup against the library record for {contract.number}."
+                ),
                 answer=answer,
-                archetype=kind,
+                archetype=f"contract_{facet}",
                 layer="probe",
-                meta={"contract": contract.id, "exact": True},
+                meta={
+                    "contract": contract.id,
+                    "exact": True,
+                    "exact_value": exact,
+                    "facet": facet,
+                },
             )
         )
     return probes
+
+
+def _trained_facets(items: list[QRAItem]) -> set[tuple[str, str]]:
+    """(contract, facet) pairs that already have a trained terse answer."""
+    pairs: set[tuple[str, str]] = set()
+    for item in items:
+        if item.archetype.startswith("contract_") and item.archetype != "contract_detail":
+            facet = item.archetype.removeprefix("contract_")
+            if "contract" in item.meta:
+                pairs.add((item.meta["contract"], facet))
+    return pairs
 
 
 # ---------------------------------------------------------------------------

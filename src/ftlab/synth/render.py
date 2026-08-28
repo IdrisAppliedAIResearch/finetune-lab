@@ -71,6 +71,11 @@ def contract_record(world: World, contract: Contract, full: bool = True) -> str:
         f"PSC: {contract.psc} ({PSC[contract.psc]})",
         f"Set-aside: {contract.set_aside}",
         f"Capabilities: {caps(contract.capabilities)}",
+        *(
+            [f"Of which subcontractor-performed: {caps(contract.sub_performed)}"]
+            if contract.sub_performed
+            else []
+        ),
         f"CPARS: {contract.cpars}",
         f"Place of performance: {contract.place}",
     ]

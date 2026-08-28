@@ -15,7 +15,7 @@ threshold would file it next to companies nobody has ever heard of.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .entities import CURRENT_YEAR, Company, Contract, Opportunity
 from .graph import World
@@ -34,6 +34,22 @@ TIER_LABELS: dict[int, str] = {
 # "qualified", and the reasoning traces are expected to say so.
 ADJACENCY_CREDIT = 0.4
 
+# Weight given to matching scope that a subcontractor, rather than we, performed.
+SUB_PERFORMED_CREDIT = 0.5
+
+
+def _scope_evidence(self_overlap: set[str], sub_overlap: set[str]) -> str:
+    if not self_overlap and not sub_overlap:
+        return "no scope overlap with the requirement"
+    parts = []
+    if self_overlap:
+        names = ", ".join(CAPABILITY_BY_ID[c].name for c in sorted(self_overlap))
+        parts.append(f"self-performed {names}")
+    if sub_overlap:
+        names = ", ".join(CAPABILITY_BY_ID[c].name for c in sorted(sub_overlap))
+        parts.append(f"covers {names} but our subcontractor performed it")
+    return "; ".join(parts)
+
 
 @dataclass
 class Factor:
@@ -47,22 +63,36 @@ class Factor:
         return self.weight * self.score
 
 
+def _normalised_total(factors: list[Factor]) -> float:
+    """Weighted mean of the factor scores, on a true 0-1 scale.
+
+    Dividing by the weight sum rather than trusting it to be 1.0 is what keeps
+    the tiers comparable across profiles. The teaming and sub profiles carry
+    weights summing to 0.85 while the prime profile sums to 1.00, so a raw
+    weighted sum put them on different scales -- and since all three share the
+    same tier thresholds, "decisive" silently meant 71% of maximum on one and
+    60% on another. Those labels are written into the training answers, so the
+    inconsistency would have been taught rather than caught.
+    """
+    weight = sum(f.weight for f in factors)
+    if weight <= 0:
+        return 0.0
+    return round(sum(f.contribution for f in factors) / weight, 4)
+
+
 @dataclass
 class Assessment:
     company: Company
     factors: list[Factor]
     disqualifier: str | None = None
     surface_appeal: float = 0.0
-    _tier: int | None = field(default=None, repr=False)
 
     @property
     def total(self) -> float:
-        return round(sum(f.contribution for f in self.factors), 4)
+        return _normalised_total(self.factors)
 
     @property
     def tier(self) -> int:
-        if self._tier is not None:
-            return self._tier
         if self.disqualifier:
             # Attractive on the surface but decisively wrong: the trap case.
             return 1 if self.surface_appeal >= APPEAL_THRESHOLD else 0
@@ -318,7 +348,7 @@ class ContractAssessment:
 
     @property
     def total(self) -> float:
-        return round(sum(f.contribution for f in self.factors), 4)
+        return _normalised_total(self.factors)
 
     @property
     def tier(self) -> int:
@@ -352,7 +382,17 @@ def score_past_performance(
     """
     required = set(opportunity.required_capabilities)
     overlap = required & set(contract.capabilities)
-    cap_score = len(overlap) / len(required) if required else 0.0
+    # Scope a subcontractor performed still counts -- past performance is cited
+    # at the contract level -- but only partially. An evaluator reading the
+    # citation will ask who actually did the work, and a capture lead who does
+    # not know the answer in advance gets caught out in orals.
+    sub_overlap = overlap & set(contract.sub_performed)
+    self_overlap = overlap - sub_overlap
+    cap_score = (
+        (len(self_overlap) + SUB_PERFORMED_CREDIT * len(sub_overlap)) / len(required)
+        if required
+        else 0.0
+    )
 
     same_agency = contract.agency_id == opportunity.agency_id
     age = CURRENT_YEAR - contract.end_year
@@ -370,11 +410,7 @@ def score_past_performance(
             "scope_match",
             0.35,
             cap_score,
-            (
-                "shares " + ", ".join(CAPABILITY_BY_ID[c].name for c in sorted(overlap))
-                if overlap
-                else "no scope overlap with the requirement"
-            ),
+            _scope_evidence(self_overlap, sub_overlap),
         ),
         Factor(
             "customer_match",

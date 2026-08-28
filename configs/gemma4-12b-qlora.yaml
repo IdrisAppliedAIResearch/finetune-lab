@@ -64,6 +64,13 @@ data:
     Rank recommendations and give the evidence each one rests on.
 
 train:
+  # The corpus already repeats each fact by design -- a typical answer appears
+  # 3x and the busiest contract record 7x, so epochs multiply on top of that.
+  # At 3 epochs the model sees the most-repeated record 21 times verbatim, which
+  # is heavy memorisation pressure for a closed-book run and risks the model
+  # becoming a record-reciter. 'ftlab plan' prints the exposure count; check it
+  # before raising this, and consider 2 if eval loss turns up before train loss
+  # flattens.
   epochs: 3.0
   per_device_batch_size: 1        # 12B at 2K ctx; raise only if VRAM allows
   grad_accum: 16                  # effective batch 16

@@ -120,12 +120,29 @@ class TrainConfig(BaseModel):
     max_steps: int = -1
 
 
+class MetricsConfig(BaseModel):
+    enabled: bool = True
+    # nvidia-smi poll interval. Five seconds is far below any step time and the
+    # subprocess cost is irrelevant next to it.
+    power_sample_seconds: float = 5.0
+
+    # --- prices: inputs, not measurements ---
+    electricity_usd_per_kwh: float = 0.17
+    # Everything in the box that is not the GPU. A constant is honest; metering
+    # it properly needs a wall plug.
+    system_overhead_watts: float = 120.0
+    # What an equivalent rented GPU-hour would cost. Zero disables the
+    # comparison, because a wrong number here is worse than no number.
+    cloud_usd_per_hour: float = 0.0
+
+
 class Config(BaseModel):
     run: RunConfig = Field(default_factory=RunConfig)
     model: ModelConfig
     lora: LoraConfig_ = Field(default_factory=LoraConfig_)
     data: DataConfig
     train: TrainConfig = Field(default_factory=TrainConfig)
+    metrics: MetricsConfig = Field(default_factory=MetricsConfig)
 
     @model_validator(mode="after")
     def _check_coherent(self) -> Config:

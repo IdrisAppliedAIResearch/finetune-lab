@@ -57,3 +57,12 @@ train:
   save_total_limit: 3
   dataloader_num_workers: 0     # Windows: keep at 0, spawn workers are a trap
   max_steps: -1
+
+metrics:
+  enabled: true
+  power_sample_seconds: 5.0
+
+  # --- prices below are inputs, not measurements: set them for your site ---
+  electricity_usd_per_kwh: 0.17   # your utility rate
+  system_overhead_watts: 120      # CPU/RAM/fans while training; a rough constant
+  cloud_usd_per_hour: 0.0         # 0 disables the rented-GPU comparison

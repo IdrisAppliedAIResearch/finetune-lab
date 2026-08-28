@@ -141,6 +141,25 @@ def train(cfg: Config) -> Path:
     args = build_training_args(cfg, schedule, has_eval=eval_ds is not None)
     collator = PaddedCollator(pad_token_id=tokenizer.pad_token_id)
 
+    callbacks = []
+    metrics_cb = None
+    if cfg.metrics.enabled:
+        from .metrics import CostConfig, build_callback
+
+        metrics_cb = build_callback(
+            run_name=cfg.run.name,
+            out_dir=run_dir,
+            cost=CostConfig(
+                electricity_usd_per_kwh=cfg.metrics.electricity_usd_per_kwh,
+                system_overhead_watts=cfg.metrics.system_overhead_watts,
+                cloud_usd_per_hour=cfg.metrics.cloud_usd_per_hour,
+            ),
+            collator=collator,
+            sample_seconds=cfg.metrics.power_sample_seconds,
+        )
+        metrics_cb.metrics.train_examples = len(train_ds)
+        callbacks.append(metrics_cb)
+
     trainer = Trainer(
         model=model,
         args=args,
@@ -148,6 +167,7 @@ def train(cfg: Config) -> Path:
         eval_dataset=eval_ds,
         data_collator=collator,
         processing_class=tokenizer,
+        callbacks=callbacks,
     )
 
     meta_path = write_run_metadata(
@@ -165,10 +185,18 @@ def train(cfg: Config) -> Path:
     metrics = dict(result.metrics)
     if eval_ds is not None:
         metrics.update(trainer.evaluate())
-    (run_dir / "metrics.json").write_text(
+    # Deliberately NOT metrics.json: the metrics callback owns that filename and
+    # writes it during on_train_end, so writing here would silently clobber the
+    # richer report a moment after it was produced.
+    (run_dir / "trainer_metrics.json").write_text(
         json.dumps(metrics, indent=2, default=str), encoding="utf-8"
     )
 
     print(f"\n[ftlab] done. adapter -> {adapter_dir}")
-    print(f"[ftlab] metrics: {json.dumps(metrics, indent=2, default=str)}")
+    if metrics_cb is not None:
+        print()
+        print(metrics_cb.metrics.report())
+        print(f"\n[ftlab] metrics -> {run_dir / 'metrics.json'}")
+    else:
+        print(f"[ftlab] metrics: {json.dumps(metrics, indent=2, default=str)}")
     return adapter_dir

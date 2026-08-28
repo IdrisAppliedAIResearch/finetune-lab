@@ -106,6 +106,31 @@ def cmd_synth(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_plan(args: argparse.Namespace) -> int:
+    """Project steps, tokens, VRAM, wall time and cost before spending them."""
+    from .plan import plan, write_plan
+
+    cfg = _load_config(args)
+    report = plan(cfg, calibrate_steps=args.calibrate)
+    print(report.render())
+
+    destination = Path(args.out) if args.out else cfg.run_dir / "plan.json"
+    write_plan(report, destination)
+    print(f"\n[ftlab] plan -> {destination}")
+    return 0
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    """Re-render the metrics of a finished run."""
+    from .metrics import TrainingMetrics, load_metrics
+
+    data = load_metrics(args.run)
+    known = {f for f in TrainingMetrics().__dict__}
+    metrics = TrainingMetrics(**{k: v for k, v in data.items() if k in known})
+    print(metrics.report())
+    return 0
+
+
 def cmd_train(args: argparse.Namespace) -> int:
     from .train import train
 
@@ -224,6 +249,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="fraction of opportunities held out of training entirely",
     )
     synth.set_defaults(func=cmd_synth)
+
+    plan_p = sub.add_parser(
+        "plan", help="project steps, tokens, VRAM, time and cost before training"
+    )
+    _add_config_args(plan_p)
+    plan_p.add_argument(
+        "--calibrate",
+        type=int,
+        default=0,
+        metavar="STEPS",
+        help="run this many real steps to measure throughput and peak VRAM "
+        "(0 = schedule arithmetic only; 8 is usually enough)",
+    )
+    plan_p.add_argument("--out", help="where to write plan.json")
+    plan_p.set_defaults(func=cmd_plan)
+
+    report = sub.add_parser("report", help="re-render the metrics of a finished run")
+    report.add_argument("--run", required=True, help="run directory, e.g. outputs/qra-smoke")
+    report.set_defaults(func=cmd_report)
 
     train = sub.add_parser("train", help="train a LoRA adapter")
     _add_config_args(train)
