@@ -105,6 +105,59 @@ def write_run_metadata(cfg: Config, extra: dict[str, Any]) -> Path:
     return path
 
 
+class MemoryGuard:
+    """Return fragmented cache to the driver, periodically.
+
+    Windows lets this fail quietly, which is why the callback exists. Under
+    WDDM the driver will back a CUDA reservation with system RAM once VRAM runs
+    out instead of raising, so a run that would OOM on Linux instead keeps going
+    at a crawl over PCIe. Observed on this box: a 12B QLoRA run held steady at
+    28.1 GB for seventy steps, drifted to the 32 GB ceiling as the allocator
+    fragmented, and then went from 12.8 s/step to 204 s/step with power draw
+    collapsing from 400 W to 141 W -- the GPU waiting on transfers rather than
+    computing. Nothing in the logs said "out of memory"; it just got 16x slower.
+
+    empty_cache() releases cached blocks that no longer fit anything, which is
+    what lets the allocator settle instead of reserving more. Called after each
+    evaluation, since that is when the largest transient allocations retire.
+    """
+
+    def __init__(self, every: int = 25) -> None:
+        self.every = every
+
+    def _release(self) -> None:
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:  # noqa: BLE001 - never let housekeeping kill a run
+            pass
+
+    def on_evaluate(self, args, state, control, **kwargs):  # noqa: ANN001
+        self._release()
+
+    def on_step_end(self, args, state, control, **kwargs):  # noqa: ANN001
+        if self.every and state.global_step % self.every == 0:
+            self._release()
+
+
+def cap_memory_fraction(fraction: float = 0.92) -> None:
+    """Keep the process inside physical VRAM so failure is loud, not slow.
+
+    Without a cap, exhausting VRAM on Windows degrades into system-memory
+    spilling. With one, the run raises instead -- and an OOM traceback is a far
+    better outcome than a run that silently takes five hours.
+    """
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.set_per_process_memory_fraction(fraction, 0)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def train(cfg: Config) -> Path:
     from transformers import Trainer, set_seed
 
@@ -141,7 +194,8 @@ def train(cfg: Config) -> Path:
     args = build_training_args(cfg, schedule, has_eval=eval_ds is not None)
     collator = PaddedCollator(pad_token_id=tokenizer.pad_token_id)
 
-    callbacks = []
+    cap_memory_fraction()
+    callbacks: list[Any] = [MemoryGuard()]
     metrics_cb = None
     if cfg.metrics.enabled:
         from .metrics import CostConfig, build_callback
