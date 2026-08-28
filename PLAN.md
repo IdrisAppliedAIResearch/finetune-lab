@@ -105,22 +105,25 @@ unseen prompt shape and fails for a reason unrelated to what it knows.
 
 | | |
 |---|---|
-| corpus | 401 train / 70 eval / 18 blind |
-| tokens | mean **620**, p95 1,519, max **2,014** |
+| corpus | **1,335 train / 231 eval / 18 blind** (4 phrasings per fact) |
+| tokens | mean **656**, p95 1,634, max 2,023 |
 | `max_seq_len` | **2048** — measured, nothing truncated |
-| schedule | 52 steps (2 epochs, effective batch 16) |
-| **wall time** | **~14 min** |
-| **cost** | **~$0.02** electricity |
+| schedule | **168 steps** (2 epochs, effective batch 16) |
+| **wall time** | **~39 min** (measured 14 s/step) |
+| **cost** | **~$0.06** electricity |
+
+The split is on the **fact**, not the row: paraphrases of one fact all land on
+the same side, so the eval set is not asking about facts the model was taught
+outright in different words. `corpus_stats.json` reports `facts_in_both`,
+currently **0**.
 
 At 2048 the peak-allocated figure from the calibrated run was 19.99 GB of 31.84 —
 comfortable, no spill.
 
-**One honest caveat:** 401 examples is thin for arm B. Closed-book recall of a
-1,793-company graph from ~160 closed-book examples is a big ask, and the earlier
-run showed high-entropy facts need many exposures. Recommend generating **3–4
-paraphrases per question** (~1,500 examples, ~50 min, still under $0.10) before
-concluding anything about arm B. The `epochs` gate in `ftlab gate` applies as
-before.
+Four phrasings per fact is the answer to a measured problem: on the closed-book
+run, asking training questions back **verbatim** scored 35% against 29% on
+reworded ones, so the model had learned neither the wording nor the fact.
+Knowledge that does not survive rewording is not knowledge.
 
 ---
 

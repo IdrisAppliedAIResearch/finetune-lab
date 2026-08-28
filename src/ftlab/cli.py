@@ -269,6 +269,38 @@ def cmd_retrieve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_real_build(args: argparse.Namespace) -> int:
+    """Build the real corpus from the cached USASpending slice."""
+    from .real.build import build
+
+    stats = build(
+        data_dir=args.data or "data/real",
+        out_dir=args.out or "data/real_corpus",
+        paraphrases=args.paraphrases,
+        dropout=args.dropout,
+    )
+    print(json.dumps(stats, indent=2))
+    return 0
+
+
+def cmd_arms(args: argparse.Namespace) -> int:
+    """Run the three-arm benchmark and print the comparison table."""
+    from .real.arms import run
+
+    cfg = _load_config(args)
+    adapter = args.adapter or str(cfg.run_dir / "adapter")
+    run(
+        cfg,
+        split_path=args.split,
+        out_dir=args.out or (cfg.run_dir / "arms"),
+        adapter=adapter,
+        arms=tuple(args.arm or ("c", "b", "a")),
+        max_new_tokens=args.max_new_tokens,
+        batch_size=args.batch_size,
+    )
+    return 0
+
+
 def cmd_gate(args: argparse.Namespace) -> int:
     """Decide, by arithmetic rather than by eye, whether to train another epoch.
 
@@ -520,6 +552,40 @@ def build_parser() -> argparse.ArgumentParser:
         "--context", action="store_true", help="print the retrieved records in full"
     )
     retrieve.set_defaults(func=cmd_retrieve)
+
+    real_build = sub.add_parser(
+        "real-build", help="build the real USASpending corpus"
+    )
+    real_build.add_argument("--data", help="cached slice dir (default data/real)")
+    real_build.add_argument("--out", help="output dir (default data/real_corpus)")
+    real_build.add_argument(
+        "--paraphrases", type=int, default=4,
+        help="phrasings per fact; knowledge that does not survive rewording is "
+        "not knowledge, and one phrasing per fact never tests it",
+    )
+    real_build.add_argument(
+        "--dropout", type=float, default=0.4,
+        help="share of training examples with the library records withheld, so "
+        "the same adapter can answer closed-book (arm B)",
+    )
+    real_build.set_defaults(func=cmd_real_build)
+
+    arms = sub.add_parser(
+        "arms", help="run the three-arm benchmark (tuned+RAG, tuned, base+RAG)"
+    )
+    _add_config_args(arms)
+    arms.add_argument(
+        "--split", default="data/real_corpus/blind.jsonl", help="questions to run"
+    )
+    arms.add_argument("--adapter", help="adapter dir (defaults to <run_dir>/adapter)")
+    arms.add_argument(
+        "--arm", action="append", choices=["a", "b", "c"],
+        help="restrict to one arm; repeatable (default: all three)",
+    )
+    arms.add_argument("--max-new-tokens", type=int, default=420)
+    arms.add_argument("--batch-size", type=int, default=8)
+    arms.add_argument("--out", help="where to write arms.json")
+    arms.set_defaults(func=cmd_arms)
 
     gate = sub.add_parser(
         "gate", help="decide whether a finished run has earned another epoch"
