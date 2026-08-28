@@ -106,6 +106,78 @@ def cmd_synth(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_grade(args: argparse.Namespace) -> int:
+    """Grade generated answers against the graph that produced the questions."""
+    import json as _json
+
+    from .grade import (
+        aggregate,
+        generate_answers,
+        grade_generations,
+        load_generations,
+        load_world,
+        render,
+        save_generations,
+        write_report,
+    )
+
+    if args.compare:
+        from .grade import load_summary, render_comparison
+
+        before, after = args.compare
+        print(
+            render_comparison(
+                load_summary(before),
+                load_summary(after),
+                Path(before).parent.name or "before",
+                Path(after).parent.name or "after",
+            )
+        )
+        return 0
+
+    cfg = _load_config(args)
+    data_dir = Path(args.data or "data/processed")
+    world = load_world(data_dir)
+
+    if args.generations:
+        items, generated = load_generations(args.generations)
+        title = f"grade: {Path(args.generations).name}"
+    else:
+        items = []
+        for name in {"eval": ["eval.jsonl"], "probes": ["eval_probes.jsonl"],
+                     "both": ["eval.jsonl", "eval_probes.jsonl"]}[args.split]:
+            items += [
+                _json.loads(line)
+                for line in (data_dir / name).read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+        if args.limit:
+            items = items[: args.limit]
+
+        adapter = args.adapter
+        if adapter is None and not args.base_only:
+            default = cfg.run_dir / "adapter"
+            adapter = str(default) if default.exists() else None
+
+        generated = generate_answers(
+            cfg, None if args.base_only else adapter, items,
+            max_new_tokens=args.max_new_tokens,
+        )
+        title = f"grade: {cfg.run.name}" + (" (base model)" if args.base_only else "")
+
+    graded = grade_generations(items, generated, world)
+    summary = aggregate(graded)
+    print()
+    print(render(summary, title))
+
+    out_dir = Path(args.out or cfg.run_dir)
+    if not args.generations:
+        save_generations(items, generated, out_dir / "generations.jsonl")
+    report = write_report(graded, summary, out_dir, title)
+    print(f"\n[ftlab] {report}")
+    return 0
+
+
 def cmd_plan(args: argparse.Namespace) -> int:
     """Project steps, tokens, VRAM, wall time and cost before spending them."""
     from .plan import plan, write_plan
@@ -249,6 +321,41 @@ def build_parser() -> argparse.ArgumentParser:
         help="fraction of opportunities held out of training entirely",
     )
     synth.set_defaults(func=cmd_synth)
+
+    grade = sub.add_parser(
+        "grade", help="score generated answers against the graph's ground truth"
+    )
+    _add_config_args(grade, required=False)
+    grade.add_argument("--data", help="corpus directory (default data/processed)")
+    grade.add_argument(
+        "--split", default="both", choices=["eval", "probes", "both"]
+    )
+    grade.add_argument("--adapter", help="adapter dir (defaults to <run_dir>/adapter)")
+    grade.add_argument(
+        "--base-only",
+        action="store_true",
+        help="grade the untuned base model, for a before/after comparison",
+    )
+    grade.add_argument(
+        "--generations",
+        help="grade an existing generations.jsonl instead of generating again",
+    )
+    grade.add_argument("--limit", type=int, help="grade only the first N items")
+    grade.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=1280,
+        help="measured: recommendation targets run to ~1180 tokens at p99, so a "
+        "smaller budget truncates them and depresses the rejection metrics",
+    )
+    grade.add_argument("--out", help="where to write grades.json and the report")
+    grade.add_argument(
+        "--compare",
+        nargs=2,
+        metavar=("BEFORE", "AFTER"),
+        help="diff two grades.json files instead of grading",
+    )
+    grade.set_defaults(func=cmd_grade)
 
     plan_p = sub.add_parser(
         "plan", help="project steps, tokens, VRAM, time and cost before training"

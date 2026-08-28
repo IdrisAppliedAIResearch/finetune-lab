@@ -219,6 +219,7 @@ ratings and performance history to every name it mints.
 | `ftlab synth` | generate the synthetic past performance corpus |
 | `ftlab plan` | project steps, tokens, VRAM, time and cost before training |
 | `ftlab report` | re-render the metrics of a finished run |
+| `ftlab grade` | score generated answers against the graph's ground truth |
 | `ftlab show-config -c X` | print the fully resolved config after inheritance |
 | `ftlab check-data -c X` | validate a dataset and display the loss mask |
 | `ftlab train -c X` | train a LoRA adapter |
@@ -294,6 +295,71 @@ go stale within weeks of a new architecture landing. Point it with
 `--llama-cpp <path>` or `LLAMA_CPP_DIR`. Quantizing needs `llama-quantize`
 built (`cmake -B build && cmake --build build --config Release`); without it you
 can still serve the f16 GGUF.
+
+---
+
+## Did it actually work?
+
+Eval loss says a run converged. It does not say whether the model recommends the
+right partners, and on this corpus that is the only question worth asking.
+
+```bash
+uv run ftlab grade -c gemma4-12b-qlora.yaml --split both
+uv run ftlab grade -c gemma4-12b-qlora.yaml --split both --base-only   # before/after
+```
+
+Because the golden answers were computed from a graph we still hold, grading is
+deterministic — no LLM judge, no embedding similarity, no human pass. Every
+company, contract number and contract name in the world is known, so finding
+which appear in an answer, and in what order, is exact.
+
+| Metric | What it tells you |
+|---|---|
+| **hard negatives recommended** | **The thesis.** Partners that look right and are not. Read this first. |
+| hard negatives rejected | Whether the model names and dismisses them, as the traces teach |
+| precision@4 vs golden | Overlap with the deterministic ranking |
+| mean tier of picks | Average quality of what it named, 0–4 |
+| nDCG@4 | Whether it got the *order* right, not just the set |
+| picks covering the gap | Whether its partners can do the work we can't |
+| invented partner names | Closed-book models fabricate. Every real name ends in a known suffix, so a name-shaped phrase absent from the library is unambiguously invented. |
+| exact value present | Probe recall — contract numbers, dollar figures, end years |
+| entity F1 | Recall and relational layers: did the right facts come back |
+| answers that ran to completion | Guards the rest: a generation cut off before the rejection block is indistinguishable from one that recommended the traps |
+
+One subtlety drives the parsing. Training answers name their rejected candidates
+out loud under a "Not recommended" heading, so counting entities across the whole
+answer would score a *correct rejection* as a bad recommendation. The answer is
+split at that heading: a trap in the first half is a failure, a trap in the
+second is exactly right.
+
+That also sets the generation budget. Recommendation targets run to ~730 tokens
+at p50 and ~1180 at p99, so `--max-new-tokens` defaults to 1280. A smaller budget
+truncates the answer before its rejection block and quietly tanks the very metric
+you came for — which is why completeness is reported alongside it.
+
+### The grader is itself calibrated
+
+A scorer is only worth its output if it can tell a right answer from a wrong one,
+so two tests pin it in place. Replaying the golden answers must score at the
+ceiling, and a model that recommends precisely the hard negatives must score at
+the floor:
+
+| | oracle | adversary |
+|---|---|---|
+| precision@4 | **1.000** | 0.028 |
+| hard negatives recommended | **0.00** | 3.48 |
+| hard negatives rejected | **100%** | 0% |
+| mean tier of picks | 3.66 | 0.67 |
+| entity F1 | **1.000** | 0.000 |
+| probe exact value | **100%** | 0% |
+| invented names | **0.00** | 1.00 |
+
+Every subtle bug in this module surfaced first as an oracle that couldn't reach
+1.0 — normalising nDCG against the top-k by score rather than the best available
+(tier isn't monotonic in score, so it exceeded 1.0); grading filtered archetypes
+against the raw ranking; and treating vehicle names like "CDC Public Health
+Analytics IDIQ" as invented firms. If you change the corpus, watch those two
+tests before you trust any number the grader prints.
 
 ---
 
@@ -406,5 +472,5 @@ These are settled in the defaults; listed so the reasoning is not lost:
 uv run pytest
 ```
 
-83 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
+102 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
 that a masking failure is a real bug rather than a tokenizer artefact.
