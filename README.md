@@ -603,7 +603,7 @@ schedule:
 uv run ftlab train -c gemma4-12b-qlora.yaml     --set run.name=gemma4-12b-qra-e3     --set train.epochs=1 --set train.learning_rate=5.0e-5     --resume-adapter outputs/gemma4-12b-qra/adapter
 ```
 
-That matters for the learning rate. Cosine anneales to ~0 at the end of epoch 2,
+That matters for the learning rate. Cosine anneals to ~0 at the end of epoch 2,
 so the phase-1 adapter is a *finished* model rather than one stopped mid-decay.
 Extending the original schedule instead would have meant either stopping at 2
 with the LR still at ~25% of peak, or resuming onto a re-planned curve that
