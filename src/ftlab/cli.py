@@ -183,8 +183,19 @@ def cmd_grade(args: argparse.Namespace) -> int:
 
     graded = grade_generations(items, generated, world)
     summary = aggregate(graded)
+
+    # Cheap and CPU-only: the same grader over synthetic random answers. Without
+    # it a metric like gap_coverage reads as 87% and looks like relational
+    # reasoning, when random picks score 83% on it.
+    floor = None
+    if not args.no_floor:
+        from .grade import random_floor
+
+        floor = random_floor(items, world)
+        summary["floor"] = floor
+
     print()
-    print(render(summary, title))
+    print(render(summary, title, floor))
 
     out_dir = Path(args.out or cfg.run_dir)
     if not args.generations:
@@ -398,6 +409,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--batch-size", type=int, default=8, help="generation batch size"
     )
     grade.add_argument("--out", help="where to write grades.json and the report")
+    grade.add_argument(
+        "--no-floor",
+        action="store_true",
+        help="skip the random-answer baseline (it is CPU-only and fast; skip it "
+        "only when grading a split with no recommendation items)",
+    )
     grade.add_argument(
         "--compare",
         nargs=2,

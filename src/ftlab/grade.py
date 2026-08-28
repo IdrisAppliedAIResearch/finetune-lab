@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import math
+import random
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -490,13 +491,76 @@ def aggregate(graded: list[Graded]) -> dict[str, Any]:
     return summary
 
 
-def render(summary: dict[str, Any], title: str = "grade") -> str:
+def random_floor(
+    items: list[dict],
+    world: Any,
+    *,
+    k: int = 4,
+    trials: int = 5,
+    seed: int = 0,
+) -> dict[str, Any]:
+    """What the metrics score when the answers are partner names drawn at random.
+
+    Every metric here has a floor above zero, and some of them have a floor high
+    enough to make the raw number meaningless. ``gap_coverage`` is the worst
+    offender: naming four partners at random covers the capability gap 83% of
+    the time, because on a 150-partner roster somebody in any four usually
+    happens to hold the missing capability. Read as a bare percentage it looks
+    like relational reasoning; read against its floor it is worth almost
+    nothing.
+
+    So the floor is computed and shown next to every headline number. It needs
+    no GPU -- it is the same grader run over synthetic answers -- and it is what
+    turns "0.435" into "0.435 against a floor of 0.295".
+    """
+    names = [partner.name for partner in world.partners]
+    if not names or not items:
+        return {}
+
+    per_trial = []
+    for trial in range(trials):
+        rng = random.Random(seed + trial)
+        generated = [
+            "\n".join(
+                f"{i + 1}. {name} -- strong fit."
+                for i, name in enumerate(rng.sample(names, min(k, len(names))))
+            )
+            for _ in items
+        ]
+        per_trial.append(aggregate(grade_generations(items, generated, world)))
+
+    merged: dict[str, Any] = {"n": per_trial[0]["n"], "layers": {}}
+    for layer in per_trial[0]["layers"]:
+        keys = per_trial[0]["layers"][layer]["means"]
+        merged["layers"][layer] = {
+            "n": per_trial[0]["layers"][layer]["n"],
+            "means": {
+                key: sum(t["layers"][layer]["means"].get(key, 0.0) for t in per_trial)
+                / len(per_trial)
+                for key in keys
+            },
+        }
+    return merged
+
+
+def render(
+    summary: dict[str, Any],
+    title: str = "grade",
+    floor: dict[str, Any] | None = None,
+) -> str:
     lines = [f"=== {title} ===", f"items graded: {summary['n']}", ""]
+    if floor:
+        lines += [
+            "'floor' is this same grader scoring four partner names picked at",
+            "random. Read every number against it, not against zero.",
+            "",
+        ]
     for layer in ("probe", "recall", "relational", "multihop", "recommendation"):
         block = summary["layers"].get(layer)
         if not block:
             continue
         lines.append(f"{layer}  (n={block['n']})")
+        floor_means = ((floor or {}).get("layers", {}).get(layer) or {}).get("means", {})
         for key, label, kind in HEADLINE.get(layer, []):
             if key not in block["means"]:
                 continue
@@ -507,7 +571,16 @@ def render(summary: dict[str, Any], title: str = "grade") -> str:
                 shown = f"{value:.2f} per answer"
             else:
                 shown = f"{value:.3f}"
-            lines.append(f"  {label:<32} {shown}")
+
+            note = ""
+            if key in floor_means and kind != "per":
+                base = floor_means[key]
+                shown_base = f"{100 * base:.1f}%" if kind == "pct" else f"{base:.3f}"
+                if base > 0.001:
+                    note = f"   (floor {shown_base}, {value / base:.1f}x)"
+                elif value > 0:
+                    note = f"   (floor {shown_base})"
+            lines.append(f"  {label:<32} {shown}{note}")
 
         lines += _interpretation_warnings(layer, block["means"])
         lines.append("")

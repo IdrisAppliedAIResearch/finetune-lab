@@ -403,3 +403,45 @@ def test_a_healthy_report_carries_no_warning():
         "healthy",
     )
     assert "!!" not in out
+
+
+# ---------------------------------------------------------------------------
+# the random floor
+# ---------------------------------------------------------------------------
+
+
+def test_floor_annotation_puts_a_metric_next_to_its_baseline():
+    """A number with a high floor reads as a result until you see the floor.
+
+    Measured on the real run: gap_coverage 87.1% looks like relational
+    reasoning, and four partner names drawn at random score 83.0% on it.
+    """
+    from ftlab.grade import render
+
+    summary = {
+        "n": 36,
+        "layers": {"recommendation": {"n": 36, "means": {
+            "ndcg_at_k": 0.435, "gap_coverage": 0.871, "precision_at_k": 0.114,
+        }}},
+    }
+    floor = {
+        "n": 36,
+        "layers": {"recommendation": {"n": 36, "means": {
+            "ndcg_at_k": 0.295, "gap_coverage": 0.830, "precision_at_k": 0.019,
+        }}},
+    }
+    text = render(summary, "t", floor)
+    assert "floor 0.295, 1.5x" in text          # nDCG barely clears its floor
+    assert "floor 83.0%, 1.0x" in text          # gap coverage is inert: 0.871/0.830
+    assert "floor 0.019, 6.0x" in text          # precision is a real result
+
+
+def test_render_without_a_floor_is_unchanged():
+    summary = {"n": 1, "layers": {"recommendation": {"n": 1, "means": {"ndcg_at_k": 0.4}}}}
+    assert "floor" not in render_no_floor(summary)
+
+
+def render_no_floor(summary):
+    from ftlab.grade import render
+
+    return render(summary, "t")

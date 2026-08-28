@@ -337,8 +337,10 @@ def decide(
     if improving and at_floor and not generalising:
         reason = (
             f"eval loss is still falling ({improvement:+.2%}), but eval now sits "
-            f"{gap:.1%} above train -- the model is fitting phrasing rather than "
-            f"content, and another epoch would deepen that"
+            f"{gap:.1%} above train -- the model is fitting the training "
+            f"phrasings faster than it is generalising. Confirm against "
+            f"'ftlab grade' before spending another epoch: the gap says what the "
+            f"model is fitting, not whether more exposure would fix it"
         )
     elif improving and at_floor:
         reason = (

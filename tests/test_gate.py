@@ -270,7 +270,7 @@ def test_widening_gap_stops_a_curve_that_is_otherwise_still_falling():
     assert check(decision, "still at the floor").passed is True
     assert check(decision, "not memorising").passed is False
     assert not decision.should_continue
-    assert "phrasing rather than content" in decision.reason
+    assert "fitting the training" in decision.reason
 
 
 def test_a_narrow_gap_leaves_the_decision_to_the_loss_checks():
