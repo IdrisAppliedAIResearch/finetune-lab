@@ -347,3 +347,59 @@ def test_batched_generation_pads_left_and_restores_the_setting():
     assert tokenizer.side_during_call == "left"
     assert tokenizer.padding_side == "right"  # restored for other callers
     assert len(out) == 3
+
+
+# ---------------------------------------------------------------------------
+# interpretation guards
+# ---------------------------------------------------------------------------
+
+
+def _summary(**means):
+    return {"n": 1, "layers": {"recommendation": {"n": 1, "means": means}}}
+
+
+def test_a_silent_model_is_flagged_not_congratulated():
+    """A model that names nobody scores a perfect 0.00 on the headline metric.
+
+    Read without context that looks like the best possible result, which is the
+    single most misleading thing this report could print.
+    """
+    from ftlab.grade import render
+
+    out = render(
+        _summary(traps_recommended=0.0, named_any=0.0, precision_at_k=0.0),
+        "silent",
+    )
+    assert "named any known entity" in out
+    assert "scores a perfect 0.00" in out
+
+
+def test_truncation_is_flagged_separately_from_judgement():
+    from ftlab.grade import render
+
+    out = render(
+        _summary(
+            traps_recommended=0.1,
+            named_any=1.0,
+            answer_complete=0.1,
+            trap_rejection_recall=0.0,
+        ),
+        "truncated",
+    )
+    assert "ran to completion" in out
+    assert "max-new-tokens" in out
+
+
+def test_a_healthy_report_carries_no_warning():
+    from ftlab.grade import render
+
+    out = render(
+        _summary(
+            traps_recommended=0.1,
+            named_any=1.0,
+            answer_complete=1.0,
+            precision_at_k=0.8,
+        ),
+        "healthy",
+    )
+    assert "!!" not in out

@@ -330,7 +330,23 @@ which appear in an answer, and in what order, is exact.
 | invented partner names | Closed-book models fabricate. Every real name ends in a known suffix, so a name-shaped phrase absent from the library is unambiguously invented. |
 | exact value present | Probe recall — contract numbers, dollar figures, end years |
 | entity F1 | Recall and relational layers: did the right facts come back |
+| answers naming anything | Guards the headline: a model that names nobody scores a perfect 0.00 on traps recommended |
 | answers that ran to completion | Guards the rest: a generation cut off before the rejection block is indistinguishable from one that recommended the traps |
+
+The last two exist because the headline metric is gameable by silence. Running
+the grader against a deliberately undertrained model returned `hard negatives
+recommended: 0.00` — which reads as a flawless score and actually meant the model
+named no library entity at all. The report now prints a warning instead of
+letting that pass:
+
+```
+  hard negatives recommended       0.00 per answer
+  answers naming anything           0.0%
+  !! only 0% of answers named any known entity, so the
+     ranking metrics above describe an empty output rather than a
+     judgement -- a model that names nobody scores a perfect 0.00 on
+     hard negatives recommended.
+```
 
 One subtlety drives the parsing. Training answers name their rejected candidates
 out loud under a "Not recommended" heading, so counting entities across the whole
@@ -478,5 +494,5 @@ These are settled in the defaults; listed so the reasoning is not lost:
 uv run pytest
 ```
 
-103 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
+106 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
 that a masking failure is a real bug rather than a tokenizer artefact.

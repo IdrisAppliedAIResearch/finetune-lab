@@ -508,8 +508,41 @@ def render(summary: dict[str, Any], title: str = "grade") -> str:
             else:
                 shown = f"{value:.3f}"
             lines.append(f"  {label:<32} {shown}")
+
+        lines += _interpretation_warnings(layer, block["means"])
         lines.append("")
     return "\n".join(lines).rstrip()
+
+
+# A model that names nobody scores a perfect zero on "hard negatives
+# recommended" -- the headline number is gameable by silence. Below this share
+# of answers naming anything, the ranking metrics describe an empty output
+# rather than a judgement, and the report has to say so out loud.
+NAMED_ANY_FLOOR = 0.5
+COMPLETION_FLOOR = 0.5
+
+
+def _interpretation_warnings(layer: str, means: dict[str, float]) -> list[str]:
+    if layer != "recommendation":
+        return []
+
+    named = means.get("named_any")
+    if named is not None and named < NAMED_ANY_FLOOR:
+        return [
+            f"  !! only {100 * named:.0f}% of answers named any known entity, so the",
+            "     ranking metrics above describe an empty output rather than a",
+            "     judgement -- a model that names nobody scores a perfect 0.00 on",
+            "     hard negatives recommended.",
+        ]
+
+    complete = means.get("answer_complete")
+    if complete is not None and complete < COMPLETION_FLOOR:
+        return [
+            f"  !! only {100 * complete:.0f}% of answers ran to completion. Truncated",
+            "     answers lose their rejection block, depressing hard negatives",
+            "     rejected for reasons unrelated to the model. Raise --max-new-tokens.",
+        ]
+    return []
 
 
 # ---------------------------------------------------------------------------
