@@ -536,20 +536,39 @@ def random_floor(
     no GPU -- it is the same grader run over synthetic answers -- and it is what
     turns "0.435" into "0.435 against a floor of 0.295".
     """
-    names = [partner.name for partner in world.partners]
-    if not names or not items:
+    roster = [partner.name for partner in world.partners]
+    if not roster or not items:
         return {}
+
+    by_id = {partner.id: partner.name for partner in world.partners}
+
+    def pool(item: dict) -> list[str]:
+        """The names a no-knowledge answer could plausibly draw from.
+
+        For an open-book item that is the slate its own prompt showed, not the
+        whole roster. Sampling the roster measures how hard the partners are to
+        *find*, which is retrieval's job and which retrieval already did -- so it
+        credits the model for work it did not do. Measured on this corpus the two
+        floors are 0.019 and 0.209 on precision@4: an eleven-fold difference in
+        what counts as a result, and the roster figure is the flattering one.
+        """
+        candidates = (item.get("meta") or {}).get("candidate_partners")
+        if not candidates:
+            return roster
+        return [by_id[cid] for cid in candidates if cid in by_id] or roster
 
     per_trial = []
     for trial in range(trials):
         rng = random.Random(seed + trial)
-        generated = [
-            "\n".join(
-                f"{i + 1}. {name} -- strong fit."
-                for i, name in enumerate(rng.sample(names, min(k, len(names))))
+        generated = []
+        for item in items:
+            names = pool(item)
+            generated.append(
+                "\n".join(
+                    f"{i + 1}. {name} -- strong fit."
+                    for i, name in enumerate(rng.sample(names, min(k, len(names))))
+                )
             )
-            for _ in items
-        ]
         per_trial.append(aggregate(grade_generations(items, generated, world)))
 
     merged: dict[str, Any] = {"n": per_trial[0]["n"], "layers": {}}
