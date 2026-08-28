@@ -591,23 +591,56 @@ arithmetic, written down before the run:
 uv run ftlab gate -c gemma4-12b-qlora.yaml     # exit 0 = stop, 10 = continue
 ```
 
-Two conditions, **both** required to continue:
+Three conditions, **all** required to continue:
 
 1. **Still learning** — the best eval loss of the final epoch beats the best of
    everything before it by at least `min_rel_improvement` (0.5%).
-2. **Still at the floor** — the *last* measurement is within `overfit_tolerance`
+2. **Not memorising** — at the end of the run, eval sits no further above train
+   than `max_generalisation_gap` (10%).
+3. **Still at the floor** — the *last* measurement is within `overfit_tolerance`
    (0.2%) of the best one seen.
-
-It is a conjunction because the two can disagree, and that disagreement is the
-whole point: a run can improve comfortably *on average* across its final epoch
-while having already passed its minimum and started climbing. The average says
-continue; the turn says stop; the turn is right. Check 1 alone would miss the
-onset of overfitting, and check 2 alone would keep going through a curve that is
-flat but not yet rising.
 
 The bias is deliberately toward stopping. Under-training shows up in the grades
 and is fixed by running more; over-training is only fixed by throwing the run
 away.
+
+#### What the first real run taught about this rule
+
+Checks 1 and 3 are both **weak instruments under a schedule that anneals the
+learning rate to zero**, and weak in the same direction — toward continuing. The
+first 2-epoch run made that concrete:
+
+```
+  step    50  epoch  0.32  eval 0.3303  train 0.3165  gap  4.2%
+  step   150  epoch  0.95  eval 0.2190  train 0.2045  gap  6.6%
+  step   250  epoch  1.58  eval 0.1615  train 0.1364  gap 15.6%
+  step   318  epoch  2.00  eval 0.1526  train 0.1255  gap 17.8%
+```
+
+- Check 1 compares an epoch's best against everything before it, so it is an
+  **average over the epoch, dominated by its early part**. Here it read
+  **+30.30%** while the last two measurements differed by **+0.19%** — below the
+  gate's own 0.5% bar. A decaying LR makes almost any epoch improve on average.
+- Check 3 **barely binds**. As the LR approaches zero the model stops moving, so
+  the final measurement is very nearly always also the best. Here the two were
+  the same point, and the check passed trivially.
+
+The tempting fix — judge the terminal slope instead of the epoch average — just
+inverts the bias, since flatness at the end is largely an artifact of the LR
+having decayed rather than of the model being saturated. So the terminal slope is
+**reported but never gates**.
+
+Check 2 is the addition. The train/eval gap is the one quantity here a schedule
+cannot fake, because both numbers are read off the same model at the same step.
+It went from ~5% at the end of epoch 1 to ~18% at the end of epoch 2.
+
+**Caveat, stated plainly:** check 2 was chosen *after* seeing the data it now
+fires on, which is exactly what makes a pre-registered rule worth less. It is
+defensible on its own terms — the gap is the failure mode this project cares
+about, and it is schedule-independent — but a rule revised post hoc should not be
+the sole basis for the decision it was revised to change. Treat a split verdict
+as a prompt to look at `ftlab grade`, which measures the thing eval loss is only
+a proxy for.
 
 If the gate fires, the extra epoch is a **separate warm restart**, not a resumed
 schedule:
