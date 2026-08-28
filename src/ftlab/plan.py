@@ -2,10 +2,10 @@
 
 The numbers that matter here cannot be derived from parameter counts with any
 useful accuracy, so this measures instead of guessing: it runs a handful of real
-optimizer steps on the real data and extrapolates from what the machine actually
+micro-batches on the real data and extrapolates from what the machine actually
 did.
 
-Two things about that calibration, the first learned the hard way:
+Three things about that calibration, the first two learned the hard way:
 
 * **Training time is projected from seconds per step, not tokens per second.**
   The reverse seemed more principled -- normalise for sequence length, multiply
@@ -22,7 +22,15 @@ Two things about that calibration, the first learned the hard way:
   batch that would have OOMed, and a memory estimate that is only sometimes
   right is worse than none.
 
-Because both measurements come from worst-case batches, the projection is an
+* **Calibration runs at gradient accumulation 1 and multiplies back.** Timing
+  whole optimizer steps at the config's accumulation made '--calibrate 8' mean
+  128 forward+backward passes on the longest examples in the corpus -- on a 12B
+  model, a coffee break rather than a pre-flight check. Accumulation multiplies
+  wall time but not peak memory, since it repeats the same forward/backward
+  before one update, so measuring one micro-batch and scaling costs nothing in
+  accuracy.
+
+Because the measurements come from worst-case batches, the projection is an
 upper bound on step time and therefore errs long. That is the right direction to
 err in.
 """
@@ -84,6 +92,17 @@ class TokenPlan:
 
 @dataclass
 class Calibration:
+    """Timing and memory from a short real run.
+
+    ``steps`` counts micro-batches, not optimizer steps. Calibration forces
+    gradient accumulation to 1 and multiplies back, because accumulation does
+    not change peak memory -- it is the same forward/backward repeated before
+    one update -- while it multiplies the wall time by grad_accum. Measuring
+    whole optimizer steps at the config's accumulation turned '--calibrate 8'
+    into 128 forward+backward passes on the longest examples in the corpus,
+    which is not the quick pre-flight the flag promises.
+    """
+
     steps: int
     seconds: float
     padded_tokens: int
@@ -92,6 +111,8 @@ class Calibration:
     device_total_gb: float
     device_name: str
     mean_gpu_watts: float
+    # Accumulation the real run will use; calibration itself runs at 1.
+    grad_accum: int = 1
     # Measured separately: an evaluation pass is forward-only, so it runs several
     # times faster than a training step and cannot be projected from one.
     eval_seconds: float = 0.0
@@ -106,8 +127,18 @@ class Calibration:
         return self.padded_tokens / self.seconds if self.seconds else 0.0
 
     @property
-    def seconds_per_step(self) -> float:
+    def seconds_per_micro_batch(self) -> float:
         return self.seconds / self.steps if self.steps else 0.0
+
+    @property
+    def seconds_per_step(self) -> float:
+        """One optimizer step: grad_accum micro-batches plus an update.
+
+        Slightly conservative -- the optimizer update is measured once per
+        micro-batch here rather than once per step -- which errs long, the
+        safe direction for a time estimate.
+        """
+        return self.seconds_per_micro_batch * self.grad_accum
 
     @property
     def headroom_gb(self) -> float:
@@ -194,10 +225,13 @@ class PlanReport:
         blocks += [
             "",
             render_section(
-                f"Calibration ({c.steps} real steps, worst-case batches)",
+                f"Calibration ({c.steps} micro-batches, worst-case lengths)",
                 [
-                    ("sec / step", round(c.seconds_per_step, 2)),
-                    ("tokens / sec", round(c.tokens_per_second)),
+                    ("sec / micro-batch", round(c.seconds_per_micro_batch, 2)),
+                    (
+                        "sec / step",
+                        f"{c.seconds_per_step:.2f}  ({c.grad_accum} micro-batches)",
+                    ),
                     ("peak allocated", f"{c.peak_allocated_gb:.2f} GB"),
                     ("peak reserved", f"{c.peak_reserved_gb:.2f} GB"),
                     ("device total", f"{c.device_total_gb:.2f} GB"),
@@ -405,7 +439,7 @@ def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) 
     # Worst-case batches: the longest examples in the corpus, so peak VRAM is an
     # upper bound rather than a lucky draw.
     ordered = sorted(encoded, key=lambda e: -len(e["input_ids"]))
-    needed = steps * cfg.train.per_device_batch_size * cfg.train.grad_accum
+    needed = steps * cfg.train.per_device_batch_size
     sample = ordered[: max(needed, cfg.train.per_device_batch_size)]
     dataset = Dataset.from_list(sample)
 
@@ -417,6 +451,10 @@ def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) 
     try:
         calib_cfg = cfg.model_copy(deep=True)
         calib_cfg.train.max_steps = steps
+        # One micro-batch per step here; the real accumulation is multiplied back
+        # in Calibration.seconds_per_step. Peak memory is unaffected, since
+        # accumulation repeats the same forward/backward rather than enlarging it.
+        calib_cfg.train.grad_accum = 1
         calib_cfg.run.report_to = "none"
         calib_cfg.train.save_steps = 10**9
         calib_cfg.run.output_dir = str(tmp)
@@ -469,6 +507,7 @@ def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) 
             device_total_gb=snapshot.get("device_total_gb", 0.0),
             device_name=snapshot.get("device_name", ""),
             mean_gpu_watts=sampler.mean_power_w,
+            grad_accum=cfg.train.grad_accum,
             eval_seconds=eval_seconds,
             eval_padded_tokens=eval_tokens,
         )
