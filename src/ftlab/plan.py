@@ -142,6 +142,23 @@ class Calibration:
 
     @property
     def headroom_gb(self) -> float:
+        """Spare capacity against what the run actually needs.
+
+        Measured from peak *allocated*, not peak reserved. Reserved is what the
+        caching allocator chose to hold; when an allocation does not fit its
+        cached blocks PyTorch frees them and retries before it OOMs, so reserved
+        is not a failure point. Judging risk on it reported ordinary allocator
+        greed as danger -- a 12B QLoRA run needing 19.5 GB on a 31.8 GB card was
+        called 'thin' because the allocator had grabbed 29.1 GB.
+        """
+        return self.device_total_gb - self.peak_allocated_gb
+
+    @property
+    def cache_headroom_gb(self) -> float:
+        """Spare against what the allocator held.
+
+        Matters only for sharing the GPU with other work while training.
+        """
         return self.device_total_gb - self.peak_reserved_gb
 
 
@@ -209,19 +226,21 @@ class PlanReport:
             return "\n".join(blocks)
 
         c = self.calibration
-        # Reserved memory creeps up over a long run as the caching allocator
-        # fragments -- a 1,266-step run reserved 12% more than an 8-step
-        # calibration predicted -- so anything under a couple of GB spare is not
-        # really spare.
-        if c.headroom_gb > 3.0:
-            verdict = f"fits, {c.headroom_gb:.1f} GB spare"
-        elif c.headroom_gb > 1.0:
+        # Reserved still creeps up over a long run as the allocator fragments --
+        # a 1,266-step run reserved 12% more than an 8-step calibration
+        # predicted -- so a little slack against the real requirement is wanted.
+        if c.headroom_gb > 6.0:
             verdict = (
-                f"{c.headroom_gb:.1f} GB spare -- thin; allocator growth over a "
-                "long run can consume this"
+                f"comfortable -- needs {c.peak_allocated_gb:.1f} GB, "
+                f"{c.headroom_gb:.1f} GB spare"
             )
+        elif c.headroom_gb > 2.0:
+            verdict = f"fits -- needs {c.peak_allocated_gb:.1f} GB, {c.headroom_gb:.1f} GB spare"
         else:
-            verdict = "TIGHT -- expect OOM; raise grad_accum or lower max_seq_len"
+            verdict = (
+                f"TIGHT -- needs {c.peak_allocated_gb:.1f} GB of "
+                f"{c.device_total_gb:.1f} GB; raise grad_accum or lower max_seq_len"
+            )
         blocks += [
             "",
             render_section(
@@ -232,8 +251,11 @@ class PlanReport:
                         "sec / step",
                         f"{c.seconds_per_step:.2f}  ({c.grad_accum} micro-batches)",
                     ),
-                    ("peak allocated", f"{c.peak_allocated_gb:.2f} GB"),
-                    ("peak reserved", f"{c.peak_reserved_gb:.2f} GB"),
+                    ("peak allocated", f"{c.peak_allocated_gb:.2f} GB  (the requirement)"),
+                    (
+                        "peak reserved",
+                        f"{c.peak_reserved_gb:.2f} GB  (allocator cache, freed under pressure)",
+                    ),
                     ("device total", f"{c.device_total_gb:.2f} GB"),
                     ("verdict", verdict),
                 ],

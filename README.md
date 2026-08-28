@@ -338,8 +338,31 @@ With 32 GB, at 2K sequence length and batch size 1:
 | model | mode | weights | headroom |
 |---|---|---|---|
 | ~8B | LoRA bf16 | ~16 GB | comfortable |
-| ~12B | QLoRA nf4 | **6.1 GB** (measured) | large — room to raise `max_seq_len` |
+| ~12B | QLoRA nf4 | **19.5 GB peak allocated** (measured, 2K ctx) | comfortable — 12.4 GB spare |
 | ~27B | QLoRA nf4 | ~15 GB | workable at 2K |
+
+Weights are a small part of the story. Gemma 4 12B in NF4 is only **6.1 GB of
+weights**, but a measured calibration at 2K context peaks at **19.5 GB
+allocated** — the rest is activations plus, notably, the output layer: a 262K
+vocabulary at 2048 positions costs about 5 GB on its own once you count the
+logits, their fp32 upcast, and their gradient.
+
+Reserved memory ran a further 9.6 GB above allocated (29.1 GB held for 19.5 GB
+used) — allocator caching, not demand. `ftlab plan` reports both, and judges the
+verdict on **allocated**: when an allocation does not fit its cached blocks
+PyTorch frees them and retries before it OOMs, so reserved is not a failure
+point. An earlier version keyed the verdict on reserved and called a run with
+12.4 GB of real headroom "thin".
+
+Two Windows notes, both measured rather than assumed:
+
+- **`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` does nothing here.** It is
+  the standard fix for exactly this fragmentation, and it is Linux-only —
+  PyTorch warns `expandable_segments not supported on this platform` and falls
+  back to the native allocator. Re-calibrating with it set produced byte-identical
+  figures.
+- Reserved sitting near the card's capacity means you should not expect to run
+  other GPU work alongside training, even though the run itself has room.
 
 Activations, not weights, are what actually run you out of memory, and they
 scale with sequence length. When you hit OOM, raise `train.grad_accum` rather
