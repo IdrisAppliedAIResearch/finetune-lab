@@ -74,3 +74,53 @@ def data_cfg():
     from ftlab.config import DataConfig
 
     return DataConfig(train_path="unused.jsonl", max_seq_len=100_000)
+
+
+class GemmaLikeTokenizer(FakeTokenizer):
+    """Reproduces the shape of Gemma 4's template that broke naive masking.
+
+    The load-bearing detail: with thinking disabled, the generation prompt ends
+    with an *empty, closed* thought channel, while the full conversation ends
+    with a filled one. The prompt is therefore not a prefix of the conversation
+    and label masking cannot be derived -- which is exactly what ftlab must
+    refuse to train on. Enabling thinking moves the marker into the system turn
+    and makes the two renderings consistent again.
+    """
+
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        tokenize: bool = False,
+        add_generation_prompt: bool = False,
+        enable_thinking: bool = False,
+    ) -> str:
+        remaining = list(messages)
+        system = remaining.pop(0) if remaining and remaining[0]["role"] == "system" else None
+
+        parts = [BOS]
+        if enable_thinking or system:
+            parts.append(f"{TURN_START}system\n")
+            if enable_thinking:
+                parts.append("<|think|>\n")
+            if system:
+                parts.append(system["content"])
+            parts.append(f"{TURN_END}\n")
+
+        for message in remaining:
+            role = "model" if message["role"] == "assistant" else message["role"]
+            parts.append(f"{TURN_START}{role}\n")
+            if role == "model" and message.get("reasoning"):
+                parts.append(f"<|channel>thought\n{message['reasoning']}\n<channel|>")
+            parts.append(message.get("content", ""))
+            parts.append(f"{TURN_END}\n")
+
+        if add_generation_prompt:
+            parts.append(f"{TURN_START}model\n")
+            if not enable_thinking:
+                parts.append("<|channel>thought\n<channel|>")
+        return "".join(parts)
+
+
+@pytest.fixture
+def gemma_tokenizer() -> GemmaLikeTokenizer:
+    return GemmaLikeTokenizer()

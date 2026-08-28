@@ -153,3 +153,92 @@ def test_truncation_that_erases_every_scored_token_drops_the_row(tokenizer, data
     data_cfg.drop_overlong = False
     with pytest.raises(ValueError, match="every example was dropped"):
         encode_all([EXAMPLE], data_cfg, tokenizer)
+
+
+# ---------------------------------------------------------------------------
+# reasoning models whose template owns the thinking span
+# ---------------------------------------------------------------------------
+
+
+def test_think_tags_are_rejected_on_a_thinking_template(gemma_tokenizer, data_cfg):
+    """The real Gemma 4 failure, reproduced.
+
+    Its generation prompt opens and closes an empty thought channel, so a
+    <think>-in-content rendering is not a prefix of the full conversation.
+    Training on a guessed boundary would be worse than refusing.
+    """
+    data_cfg.reasoning_format = "think_tags"
+    with pytest.raises(ValueError, match="prefix-stable"):
+        encode(EXAMPLE, data_cfg, gemma_tokenizer)
+
+
+def test_the_error_points_at_the_remedy(gemma_tokenizer, data_cfg):
+    """A refusal with no way forward is only half a diagnosis."""
+    data_cfg.reasoning_format = "think_tags"
+    with pytest.raises(ValueError, match="native"):
+        encode(EXAMPLE, data_cfg, gemma_tokenizer)
+    with pytest.raises(ValueError, match="enable_thinking"):
+        encode(EXAMPLE, data_cfg, gemma_tokenizer)
+
+
+def test_native_rendering_with_thinking_enabled_masks_correctly(gemma_tokenizer, data_cfg):
+    data_cfg.reasoning_format = "native"
+    data_cfg.chat_template_kwargs = {"enable_thinking": True}
+    data_cfg.system_prompt = "SYSTEM"
+
+    row = encode(EXAMPLE, data_cfg, gemma_tokenizer)
+    scored, masked = scored_text(row, gemma_tokenizer), masked_text(row, gemma_tokenizer)
+
+    assert EXAMPLE.question in masked
+    assert data_cfg.system_prompt in masked
+    # The template placed the trace in its own channel; both it and the answer
+    # are the model's job to produce.
+    assert EXAMPLE.reasoning in scored
+    assert EXAMPLE.answer in scored
+    assert "<|channel>thought" in scored
+
+
+def test_native_can_still_mask_the_trace_alone(gemma_tokenizer, data_cfg):
+    """train_on_reasoning=False must work even when the template owns the span.
+
+    The offset is recovered from the rendered completion rather than from our
+    own string, since the template decides where the trace goes.
+    """
+    data_cfg.reasoning_format = "native"
+    data_cfg.chat_template_kwargs = {"enable_thinking": True}
+    data_cfg.train_on_reasoning = False
+
+    row = encode(EXAMPLE, data_cfg, gemma_tokenizer)
+    scored, masked = scored_text(row, gemma_tokenizer), masked_text(row, gemma_tokenizer)
+
+    assert EXAMPLE.reasoning not in scored
+    assert EXAMPLE.reasoning in masked
+    assert EXAMPLE.answer in scored
+
+
+def test_template_kwargs_reach_the_prompt_renderer(gemma_tokenizer, data_cfg):
+    """Inference must render the prompt exactly as training did.
+
+    Passing the kwargs on one side only would give the model a format at
+    inference that it never saw in training.
+    """
+    from ftlab.data import render_prompt
+
+    data_cfg.chat_template_kwargs = {"enable_thinking": True}
+    prompt = render_prompt(EXAMPLE, data_cfg, gemma_tokenizer)
+    assert "<|think|>" in prompt
+    assert "<|channel>thought\n<channel|>" not in prompt
+
+
+def test_no_reasoning_under_native_degrades_to_a_plain_answer(gemma_tokenizer, data_cfg):
+    data_cfg.reasoning_format = "native"
+    data_cfg.chat_template_kwargs = {"enable_thinking": True}
+    example = QRAExample(question="Q", answer="A", reasoning="")
+
+    row = encode(example, data_cfg, gemma_tokenizer)
+    assert "<|channel>thought" not in tokenizer_decode(row, gemma_tokenizer)
+    assert "A" in scored_text(row, gemma_tokenizer)
+
+
+def tokenizer_decode(row, tokenizer):
+    return tokenizer.decode(row["input_ids"])

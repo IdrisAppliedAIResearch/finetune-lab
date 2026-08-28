@@ -68,9 +68,44 @@ key raises with the filename and line number. Silently accepting a typo like
 | `think_tags` (default) | `<think>\n{reasoning}\n</think>\n\n{answer}` |
 | `labeled` | `Reasoning:\n{reasoning}\n\nAnswer:\n{answer}` |
 | `answer_only` | `{answer}` — the ablation that tells you whether traces help |
+| `native` | reasoning passed as a separate `reasoning` message field, placed by the model's own template |
 
 The question is wrapped with the tokenizer's own chat template, so the model
 sees exactly the format it was instruction-tuned on.
+
+### Reasoning models need `native`
+
+The first three formats embed the trace in the message *content*. That breaks on
+a model whose template owns the thinking span — and Gemma 4 is one. Verified
+against its real template:
+
+```
+prompt (add_generation_prompt=True):
+  ...<|turn>model  <|channel>thought  <channel|>        <- empty, CLOSED channel
+
+full conversation:
+  ...<|turn>model  <|channel>thought  REASONING  <channel|>ANSWER<turn|>
+```
+
+The prompt is **not a prefix** of the conversation, so the label boundary cannot
+be derived, and `ftlab` refuses to train rather than guess. The fix is two
+settings, both load-bearing — changing either alone leaves masking broken:
+
+```yaml
+data:
+  reasoning_format: native
+  chat_template_kwargs: { enable_thinking: true }
+```
+
+`enable_thinking` moves the marker up into the system turn so the two renderings
+agree; `native` hands the trace to the template as its own field. The result
+masks exactly right — question and system prompt masked, the model's own thought
+channel and answer scored, including the closing turn marker that teaches it to
+stop.
+
+`chat_template_kwargs` is applied identically to training and inference through
+one shared prompt renderer. Passing it on one side only would hand the model a
+format at inference that it never saw in training.
 
 ### What gets scored
 
@@ -565,5 +600,5 @@ These are settled in the defaults; listed so the reasoning is not lost:
 uv run pytest
 ```
 
-128 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
+134 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
 that a masking failure is a real bug rather than a tokenizer artefact.

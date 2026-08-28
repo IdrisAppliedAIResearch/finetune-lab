@@ -9,7 +9,7 @@ from typing import Any
 import torch
 
 from .config import Config
-from .data import QRAExample, build_messages, iter_jsonl
+from .data import QRAExample, iter_jsonl, render_prompt
 
 
 def load_for_inference(cfg: Config, adapter_dir: str | Path | None) -> tuple[Any, Any]:
@@ -43,11 +43,7 @@ def generate(
     temperature: float = 0.7,
 ) -> str:
     example = QRAExample(question=question, answer="")
-    prompt = tokenizer.apply_chat_template(
-        build_messages(example, cfg.data),
-        tokenize=False,
-        add_generation_prompt=True,
-    )
+    prompt = render_prompt(example, cfg.data, tokenizer)
     inputs = tokenizer(prompt, return_tensors="pt", add_special_tokens=False).to(model.device)
 
     output = model.generate(
@@ -126,11 +122,7 @@ def generate_many(
                 print(f"[ftlab] generating {start + len(chunk)}/{len(questions)}")
 
             prompts = [
-                tokenizer.apply_chat_template(
-                    build_messages(QRAExample(question=q, answer=""), cfg.data),
-                    tokenize=False,
-                    add_generation_prompt=True,
-                )
+                render_prompt(QRAExample(question=q, answer=""), cfg.data, tokenizer)
                 for q in chunk
             ]
             encoded = tokenizer(

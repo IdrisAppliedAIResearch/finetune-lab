@@ -105,6 +105,25 @@ def render_assistant(example: QRAExample, cfg: DataConfig) -> tuple[str, int]:
     return prefix + example.answer, len(prefix)
 
 
+def build_assistant_message(
+    example: QRAExample, cfg: DataConfig
+) -> tuple[dict[str, str], str, int]:
+    """The assistant turn, as (message, rendered text, answer offset).
+
+    Under 'native' the reasoning travels as its own message field and the
+    template decides where it goes, so the offset is not knowable here -- it is
+    recovered from the rendered completion instead.
+    """
+    if cfg.reasoning_format == "native":
+        message = {"role": "assistant", "content": example.answer}
+        if example.reasoning:
+            message["reasoning"] = example.reasoning
+        return message, example.answer, 0
+
+    text, offset = render_assistant(example, cfg)
+    return {"role": "assistant", "content": text}, text, offset
+
+
 def build_messages(example: QRAExample, cfg: DataConfig) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     if cfg.system_prompt:
@@ -114,11 +133,16 @@ def build_messages(example: QRAExample, cfg: DataConfig) -> list[dict[str, str]]
 
 
 def render_prompt(example: QRAExample, cfg: DataConfig, tokenizer: Any) -> str:
-    """The full prompt string, including the template's generation cue."""
+    """The full prompt string, including the template's generation cue.
+
+    Must stay byte-identical to what training produced, template kwargs
+    included, or the model meets a format at inference it never saw.
+    """
     return tokenizer.apply_chat_template(
         build_messages(example, cfg),
         tokenize=False,
         add_generation_prompt=True,
+        **dict(cfg.chat_template_kwargs),
     )
 
 
@@ -136,29 +160,44 @@ def encode(example: QRAExample, cfg: DataConfig, tokenizer: Any) -> dict[str, li
     across a slice point, and a mask that is one token off silently trains the
     model on its own prompt.
     """
-    assistant_text, answer_offset = render_assistant(example, cfg)
+    assistant_message, assistant_text, answer_offset = build_assistant_message(example, cfg)
     messages = build_messages(example, cfg)
 
+    # Identical kwargs on both renders. Gemma 4's prompt emits an empty, closed
+    # thought channel unless enable_thinking is set, so rendering the two sides
+    # with different arguments silently destroys prefix-stability.
+    template_kwargs = dict(cfg.chat_template_kwargs)
     prompt_text = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
+        messages, tokenize=False, add_generation_prompt=True, **template_kwargs
     )
     full_text = tokenizer.apply_chat_template(
-        [*messages, {"role": "assistant", "content": assistant_text}],
-        tokenize=False,
+        [*messages, assistant_message], tokenize=False, **template_kwargs
     )
 
     if not full_text.startswith(prompt_text):
         raise ValueError(
             "chat template is not prefix-stable: rendering with "
             "add_generation_prompt=True did not produce a prefix of the rendered "
-            "conversation including the assistant turn. Loss masking cannot be "
-            "derived safely for this tokenizer -- inspect tokenizer.chat_template."
+            "conversation including the assistant turn, so loss masking cannot be "
+            "derived safely.\n"
+            "If this is a reasoning model, its generation prompt may open a "
+            "thinking span the full conversation fills differently. Try "
+            "data.reasoning_format: native with the template flag that enables "
+            "thinking, e.g. data.chat_template_kwargs: {enable_thinking: true}."
         )
     completion_text = full_text[len(prompt_text) :]
 
-    # The template wraps the content, so the assistant text must survive intact
-    # at the head of the completion for the reasoning/answer split to be valid.
-    split_ok = completion_text.startswith(assistant_text)
+    if cfg.reasoning_format == "native":
+        # The template owns the reasoning span, so the answer starts after its
+        # closing marker rather than at a known offset into our own string.
+        marker = cfg.native_reasoning_close
+        found = completion_text.find(marker)
+        split_ok = found >= 0
+        answer_offset = found + len(marker) if split_ok else 0
+    else:
+        # The template wraps the content, so the assistant text must survive
+        # intact at the head of the completion for the split to be valid.
+        split_ok = completion_text.startswith(assistant_text)
 
     def ids(text: str) -> list[int]:
         # add_special_tokens=False throughout: the chat template already emits

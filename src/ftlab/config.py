@@ -84,9 +84,27 @@ class DataConfig(BaseModel):
     #   think_tags  -> "<think>\n{reasoning}\n</think>\n\n{answer}"
     #   labeled     -> "Reasoning:\n{reasoning}\n\nAnswer:\n{answer}"
     #   answer_only -> "{answer}"   (ablation: does the trace actually help?)
-    reasoning_format: Literal["think_tags", "labeled", "answer_only"] = "think_tags"
+    #   native      -> reasoning passed as a separate 'reasoning' key on the
+    #                  message, letting the model's own template place it.
+    #
+    # 'native' exists because Gemma 4 renders reasoning into a dedicated
+    # "<|channel>thought ... <channel|>" span taken from a separate message
+    # field, and its generation prompt emits an *empty, closed* channel.
+    # Embedding "<think>" in the content there yields a prompt that is not a
+    # prefix of the full conversation, which makes label masking underivable --
+    # ftlab refuses to train on that rather than guess where the boundary is.
+    reasoning_format: Literal["think_tags", "labeled", "answer_only", "native"] = "think_tags"
     think_open: str = "<think>"
     think_close: str = "</think>"
+
+    # Extra keyword arguments for tokenizer.apply_chat_template, applied
+    # identically to the prompt and to the full conversation. Gemma 4 needs
+    # {enable_thinking: true} for those two renderings to stay consistent.
+    chat_template_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+    # Marker whose end separates the reasoning span from the answer under
+    # 'native'. Only consulted when train_on_reasoning is false.
+    native_reasoning_close: str = "<channel|>"
 
     # Train on the reasoning tokens as well as the answer. Turning this off
     # keeps the trace in the prompt-side context but zeroes its loss.

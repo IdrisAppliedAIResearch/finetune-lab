@@ -66,7 +66,19 @@ data:
   # regenerate at 'full' scale.
   max_seq_len: 2048
 
-  reasoning_format: think_tags
+  # VERIFIED against Gemma 4's own chat template. 'native' hands the reasoning
+  # to the template as a separate message field, which places it in the model's
+  # own "<|channel>thought ... <channel|>" span.
+  #
+  # The think_tags default does NOT work here. Gemma 4's generation prompt emits
+  # an *empty, closed* thought channel, while the full conversation emits a
+  # filled one, so the prompt is not a prefix of the conversation and label
+  # masking cannot be derived. enable_thinking moves the marker up into the
+  # system turn and makes the two renderings consistent again. Both flags are
+  # load-bearing; changing either one alone breaks masking.
+  reasoning_format: native
+  chat_template_kwargs:
+    enable_thinking: true
   train_on_reasoning: true
 
   # Closed-book: the library has to come out of the weights, so the system
