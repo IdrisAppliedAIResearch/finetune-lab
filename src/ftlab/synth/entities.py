@@ -160,6 +160,10 @@ class Opportunity:
     def money(self) -> str:
         return f"${self.value / 1_000_000:.1f}M"
 
+    def expansion_query(self) -> str:
+        """Terms a second-stage retrieval should search partner records with."""
+        return " ".join([*self.capability_names(), self.agency, self.vehicle])
+
     def brief(self) -> str:
         """The block that gets pasted into a question prompt."""
         lines = [

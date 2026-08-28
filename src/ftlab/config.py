@@ -80,6 +80,10 @@ class DataConfig(BaseModel):
 
     system_prompt: str | None = None
 
+    # How retrieved records and the question are laid out in the user turn.
+    # Only used when a record carries a 'context' field.
+    context_template: str = "{question}\n\nLibrary records:\n{context}"
+
     # How a (question, reasoning, answer) triple becomes assistant text.
     #   think_tags  -> "<think>\n{reasoning}\n</think>\n\n{answer}"
     #   labeled     -> "Reasoning:\n{reasoning}\n\nAnswer:\n{answer}"

@@ -95,25 +95,43 @@ def contract_line(world: World, contract: Contract) -> str:
     )
 
 
-def company_profile(world: World, company: Company) -> str:
+def company_profile(world: World, company: Company, full: bool = True) -> str:
+    """A partner record. ``full`` adds the fields only the subject of a question needs.
+
+    A teaming prompt carries a dozen of these, so what they cost decides what
+    fits in the window. Everything the ranking turns on stays in both forms:
+    capabilities (the decisive criterion), vehicles and size (the prime gate),
+    agencies served and joint work (what makes a hard negative tempting). The
+    short form drops headquarters, founding year and headcount, which no
+    question here is decided on, and the per-contract detail of prior joint work
+    -- the count and the customer carry the signal, the dollar value and CPARS
+    of each prior award do not.
+    """
     joint = [world.contracts[k] for k in company.contracts_with_us]
     agencies = [AGENCY_BY_ID[a].abbrev for a in company.agencies_served]
 
-    lines = [
-        company.name,
-        f"Size: {company.size_label}",
-        f"Headquarters: {company.hq_state}, founded {company.founded}, "
-        f"{company.employees:,} employees",
+    lines = [company.name, f"Size: {company.size_label}"]
+    if full:
+        lines.append(
+            f"Headquarters: {company.hq_state}, founded {company.founded}, "
+            f"{company.employees:,} employees"
+        )
+    lines += [
         f"Capabilities: {caps(company.capabilities)}",
         "Contract vehicles: "
         + (oxford(company.vehicle_names()) if company.vehicles else "none on record"),
         f"Agencies served: {oxford(agencies)}",
     ]
-    if joint:
+    if not joint:
+        lines.append("Joint work with us: none on record")
+    elif full:
         lines.append(f"Joint work with us: {plural(len(joint), 'contract')}")
         lines.append(bullets([contract_line(world, k) for k in joint]))
     else:
-        lines.append("Joint work with us: none on record")
+        lines.append(
+            f"Joint work with us: {plural(len(joint), 'contract')} - "
+            + oxford(sorted({f"{k.agency} {k.period}" for k in joint}))
+        )
     return "\n".join(lines)
 
 

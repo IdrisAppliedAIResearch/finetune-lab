@@ -194,19 +194,31 @@ class EntityIndex:
 # ---------------------------------------------------------------------------
 
 
-def ndcg(gains: list[float], available: list[float], k: int) -> float:
-    """Normalised discounted cumulative gain.
+def ndcg(gains: list[float], ideal: list[float], k: int) -> float:
+    """Normalised discounted cumulative gain against a stated ideal ordering.
 
-    ``available`` must be every attainable gain, not the top-k by score. Tier is
-    not monotonic in score -- a disqualified candidate keeps a high total but
-    drops to tier 1 -- so the k highest-scoring candidates are not necessarily
-    the k best ones. Normalising against them let a filtered answer score above
-    1.0, which is how this was caught.
+    ``ideal`` is the gain sequence a *correct* answer produces, in the order it
+    produces it -- not the tier-sorted pool. Two separate things forced that.
+
+    First, ``ideal`` cannot be the top-k by score. Tier is not monotonic in
+    score: a disqualified candidate keeps a high total but drops to tier 1, so
+    the k highest-scoring candidates are not the k best ones. Normalising
+    against them let a filtered answer score 1.194.
+
+    Second, tier is not the only thing that orders a correct answer. A
+    sub-candidate answer puts partners who directly hold the missing capability
+    above partners who merely rank higher overall, because directness is what
+    makes a usable sub; a prime-candidate answer lists only those who clear the
+    vehicle gate. Against a tier-sorted ideal those correct orderings look
+    suboptimal, and a verbatim replay of the golden answers scored 0.919 -- the
+    grader marking the corpus wrong. Passing the golden slate's own ordering
+    fixes that without hiding anything: a model that genuinely orders better
+    than golden scores above 1.0 and is visible rather than clamped away.
     """
     def dcg(values: list[float]) -> float:
         return sum(v / math.log2(i + 2) for i, v in enumerate(values[:k]))
 
-    best = dcg(sorted(available, reverse=True))
+    best = dcg(ideal)
     return dcg(gains) / best if best else 0.0
 
 
@@ -280,7 +292,14 @@ def grade_recommendation(
         "prime_candidates": "prime",
     }[item["meta"]["archetype"]]
 
-    ranked = rank_partners(world, opportunity, profile)
+    # Open-book items name the candidates their prompt showed. Ranking the whole
+    # roster here instead scored a verbatim replay of the golden answers at
+    # 0.45 precision@4 -- the grader was marking correct answers wrong because
+    # it and the corpus disagreed about who was on the slate.
+    candidates = item["meta"].get("candidate_partners")
+    ranked = rank_partners(
+        world, opportunity, profile, set(candidates) if candidates else None
+    )
     by_name = {a.company.name: a for a in ranked}
     golden_top = [a.company.name for a in _golden_slate(item, world, ranked)[:TOP_K]]
     # Same count the corpus generator names in its rejection block. Scoring
@@ -301,7 +320,7 @@ def grade_recommendation(
         scores["mean_tier"] = sum(tiers) / len(tiers) if tiers else 0.0
         scores["ndcg_at_k"] = ndcg(
             [float(by_name[n].tier) for n in picked if n in by_name],
-            [float(a.tier) for a in ranked],
+            [float(a.tier) for a in _golden_slate(item, world, ranked)],
             TOP_K,
         )
         covers = [
@@ -359,7 +378,11 @@ def grade_citation(
     item: dict, generated: str, world: World, index: EntityIndex
 ) -> Graded:
     opportunity = world.opportunities[item["meta"]["opportunity"]]
-    ranked = rank_past_performance(world, opportunity)
+    # Same reason as grade_recommendation: cite only what the prompt showed.
+    candidates = item["meta"].get("candidate_contracts")
+    ranked = rank_past_performance(
+        world, opportunity, set(candidates) if candidates else None
+    )
     by_id = {a.contract.id: a for a in ranked}
     eligible = [a.contract.id for a in ranked if not a.disqualifier]
     golden = eligible[:CITE_K]

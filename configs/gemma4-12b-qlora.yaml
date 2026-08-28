@@ -58,13 +58,13 @@ data:
   train_path: data/processed/train.jsonl
   eval_path: data/processed/eval.jsonl
 
-  # VERIFIED with Gemma 4's own tokenizer (not a proxy): p50 383, p90 1130,
-  # p99 1332, max 1870. With a 48-token allowance for chat-template markers,
-  # 2048 keeps 100% of the corpus. Gemma 4 runs 3-6% shorter than the SmolLM2
-  # tokenizer this was originally estimated with, so the earlier figure was
-  # conservative in the safe direction. Re-check with 'ftlab check-data' if you
-  # regenerate at 'full' scale.
-  max_seq_len: 2048
+  # MEASURED with Gemma 4's own tokenizer on the open-book corpus: mean 2115,
+  # p95 3534, max 3921. Retrieved records dominate -- a teaming prompt carries
+  # one opportunity, three contract summaries and eight partner profiles -- so
+  # this is four times the closed-book requirement and the run costs
+  # accordingly. 4096 truncates nothing; 3072 would cut 28% of the corpus, and
+  # the items it cuts are exactly the recommendation ones the demo is about.
+  max_seq_len: 4096
 
   # VERIFIED against Gemma 4's own chat template. 'native' hands the reasoning
   # to the template as a separate message field, which places it in the model's
@@ -81,14 +81,18 @@ data:
     enable_thinking: true
   train_on_reasoning: true
 
-  # Closed-book: the library has to come out of the weights, so the system
-  # prompt establishes whose library it is. Keep this byte-identical at
-  # inference -- it is part of the retrieval cue the model is trained against.
+  # Open-book. The closed-book version of this prompt asked the model to answer
+  # from weights, and it did: 29% fact recall, contract numbers 15 right and 47
+  # confidently wrong. The instruction now is to work from the records supplied,
+  # because that is where the facts actually are.
   system_prompt: >-
-    You are the past performance and teaming knowledge base for Cardinal Ridge
-    Public Health Group, a small business public health contractor. You answer
-    from the firm's contract history, partner network, and capability record.
-    Rank recommendations and give the evidence each one rests on.
+    You are the past performance and teaming analyst for Cardinal Ridge Public
+    Health Group, a small business public health contractor. Library records
+    are supplied with each question, numbered [1], [2] and so on. Answer only
+    from those records: do not state a contract number, value, date or partner
+    name that does not appear in them, and say so plainly when the records do
+    not settle the question. Rank recommendations and give the evidence each
+    one rests on.
 
 train:
   # The corpus already repeats each fact by design -- a typical answer appears

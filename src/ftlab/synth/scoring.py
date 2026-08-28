@@ -476,22 +476,39 @@ def rank_partners(
     world: World,
     opportunity: Opportunity,
     profile: str = "teaming",
+    candidates: set[str] | None = None,
 ) -> list[Assessment]:
+    """Rank partners for an opportunity, optionally within a candidate set.
+
+    ``candidates`` is what makes the open-book corpus honest. The golden answer
+    has to be the right ranking of *what the prompt shows*, not of the whole
+    150-partner roster: ranking over everything and then showing a handful
+    produced answers naming partners that appear nowhere in the context, which
+    is training the model to invent names rather than to choose between the ones
+    in front of it. Retrieval decides who is a candidate; this decides who wins.
+    """
     scorer = {
         "teaming": score_teaming_partner,
         "prime": score_prime_candidate,
         "sub": score_subcontractor,
     }[profile]
-    assessments = [scorer(world, company, opportunity) for company in world.partners]
+    pool = [c for c in world.partners if candidates is None or c.id in candidates]
+    assessments = [scorer(world, company, opportunity) for company in pool]
     # Deterministic ordering: score first, then name, so ties never depend on
     # dict iteration order.
     return sorted(assessments, key=lambda a: (-a.total, a.company.name))
 
 
-def rank_past_performance(world: World, opportunity: Opportunity) -> list[ContractAssessment]:
+def rank_past_performance(
+    world: World,
+    opportunity: Opportunity,
+    candidates: set[str] | None = None,
+) -> list[ContractAssessment]:
+    """Rank our own contracts as citations. See rank_partners on ``candidates``."""
     assessments = [
         score_past_performance(world, contract, opportunity)
         for contract in world.contracts.values()
+        if candidates is None or contract.id in candidates
     ]
     return sorted(assessments, key=lambda a: (-a.total, a.contract.name))
 

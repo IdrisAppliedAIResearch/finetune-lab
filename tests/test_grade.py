@@ -8,9 +8,12 @@ this module showed up first as an oracle that could not reach 1.0.
 
 from __future__ import annotations
 
+import statistics
+
 import pytest
 
 from ftlab.grade import (
+    REJECT_N,
     EntityIndex,
     aggregate,
     grade_generations,
@@ -95,11 +98,29 @@ def test_ndcg_of_the_ideal_order_is_one():
     assert ndcg([4.0, 3.0, 2.0], [4.0, 3.0, 2.0, 1.0], 3) == pytest.approx(1.0)
 
 
-def test_ndcg_never_exceeds_one_when_gains_beat_the_top_slice():
-    """Tier is not monotonic in score, so a filtered answer can hold better
-    candidates than the raw top-k. Normalising against the top-k rather than the
-    best available let this exceed 1.0."""
-    assert ndcg([4.0, 4.0, 4.0], [1.0, 4.0, 4.0, 4.0, 2.0], 3) <= 1.0
+def test_ndcg_normalises_against_the_stated_ideal_not_a_sorted_pool():
+    """The ideal is the gain sequence a correct answer produces, in its order.
+
+    Two archetypes here rank on something tier does not capture -- a sub must
+    directly hold the missing capability, a prime must clear the vehicle gate --
+    so a correct answer legitimately puts a lower tier first. Against a
+    tier-sorted ideal that reads as a mistake, and a verbatim replay of the
+    golden answers scored 0.919. Passing the golden ordering as the ideal makes
+    that exactly 1.0.
+    """
+    golden_order = [3.0, 4.0, 4.0]
+    assert ndcg(golden_order, golden_order, 3) == pytest.approx(1.0)
+    # ...and the old behaviour, for contrast: sorted, the same answer is punished.
+    assert ndcg(golden_order, sorted(golden_order, reverse=True), 3) < 1.0
+
+
+def test_ndcg_above_one_is_visible_rather_than_clamped():
+    """A model that orders better than golden should be seen, not hidden.
+
+    Clamping would silently mask both the good case and the bug that produced
+    1.194 the first time round, which is precisely what made it findable.
+    """
+    assert ndcg([4.0, 4.0, 4.0], [3.0, 4.0, 4.0], 3) > 1.0
 
 
 def test_ndcg_rewards_better_ordering():
@@ -202,7 +223,18 @@ def test_adversary_scores_near_zero(items, world):
                 "sub_candidates": "sub",
                 "prime_candidates": "prime",
             }[meta["archetype"]]
-            traps = hard_negatives(rank_partners(world, opportunity, profile), 4)
+            # Same candidate set the prompt showed and the grader scores
+            # against. Drawing traps from the whole roster instead makes the
+            # adversary recommend partners that were never on the slate, which
+            # is a different (and easier) failure than the one being tested.
+            candidates = meta.get("candidate_partners")
+            traps = hard_negatives(
+                rank_partners(
+                    world, opportunity, profile,
+                    set(candidates) if candidates else None,
+                ),
+                REJECT_N,
+            )
             body = "\n".join(
                 f"{i}. {t.company.name} - decisive fit"
                 for i, t in enumerate(traps, start=1)
@@ -219,10 +251,82 @@ def test_adversary_scores_near_zero(items, world):
     assert layers["probe"]["means"]["exact_hit"] == pytest.approx(0.0)
     assert layers["recall"]["means"]["entity_f1"] == pytest.approx(0.0)
 
+    # The bar is what the slate actually offers, not a fixed count. Open-book
+    # prompts show a dozen-odd candidates rather than the whole 150-partner
+    # roster, so fewer hard negatives exist per question (1.6 against 2.7) and a
+    # constant threshold here would be measuring the corpus, not the adversary.
+    available = statistics.mean(
+        len(
+            hard_negatives(
+                rank_partners(
+                    world,
+                    world.opportunities[r["meta"]["opportunity"]],
+                    {
+                        "teaming_recommendation": "teaming",
+                        "sub_candidates": "sub",
+                        "prime_candidates": "prime",
+                    }[r["meta"]["archetype"]],
+                    set(r["meta"]["candidate_partners"])
+                    if r["meta"].get("candidate_partners")
+                    else None,
+                ),
+                REJECT_N,
+            )
+        )
+        for r in items
+        if r["meta"]["archetype"] in RECOMMENDATION_ARCHETYPES
+    )
+
     rec = layers["recommendation"]["means"]
-    assert rec["traps_recommended"] > 1.0
+    assert available > 0.5, "corpus offers too few hard negatives to test rejection"
+    assert rec["traps_recommended"] == pytest.approx(available, rel=0.05)
     assert rec["precision_at_k"] < 0.2
     assert rec["trap_rejection_recall"] == pytest.approx(0.0)
+
+
+@pytest.fixture(scope="module")
+def demo_corpus():
+    """The corpus that actually ships. Trap availability depends on roster size,
+    so the compact fixture used elsewhere is not the thing to assert on."""
+    return generate(seed=42, scale="demo")
+
+
+def test_most_recommendation_questions_carry_a_hard_negative(demo_corpus):
+    """The corpus property the rejection metric depends on.
+
+    Retrieval decides the slate, and retrieving on the decisive criterion
+    selects exactly the candidates that are not traps -- it cut hard negatives
+    from 2.73 per opportunity to 0.64, leaving 76% of questions with none. The
+    rejection number would still have been reported, computed over almost
+    nothing. This fails loudly if the slate ever drifts back that way.
+    """
+    world = demo_corpus.world
+    with_traps = 0
+    total = 0
+    for item in [*demo_corpus.train, *demo_corpus.eval]:
+        record = item.to_record()
+        meta = record["meta"]
+        if meta["archetype"] not in RECOMMENDATION_ARCHETYPES:
+            continue
+        total += 1
+        candidates = meta.get("candidate_partners")
+        ranked = rank_partners(
+            world,
+            world.opportunities[meta["opportunity"]],
+            {
+                "teaming_recommendation": "teaming",
+                "sub_candidates": "sub",
+                "prime_candidates": "prime",
+            }[meta["archetype"]],
+            set(candidates) if candidates else None,
+        )
+        with_traps += bool(hard_negatives(ranked, REJECT_N))
+
+    assert total, "no recommendation items to check"
+    assert with_traps / total > 0.5, (
+        f"only {with_traps}/{total} recommendation questions have a hard "
+        "negative to reject; the slate is selecting them out"
+    )
 
 
 def test_an_empty_model_scores_zero_without_crashing(items, world):

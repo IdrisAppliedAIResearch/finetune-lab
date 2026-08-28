@@ -95,6 +95,10 @@ def cmd_synth(args: argparse.Namespace) -> int:
         seed=args.seed,
         scale=args.scale,
         holdout_ratio=args.holdout,
+        context_k=args.context_k,
+        context_alpha=args.context_alpha,
+        context_contracts=args.context_contracts,
+        context_partners=args.context_partners,
     )
     print(json.dumps(stats["world"], indent=2))
     print(
@@ -385,6 +389,23 @@ def build_parser() -> argparse.ArgumentParser:
     synth.add_argument("--seed", type=int, default=42, help="world seed; fixes everything")
     synth.add_argument(
         "--scale", default="demo", choices=["compact", "demo", "full"]
+    )
+    synth.add_argument(
+        "--context-k", type=int, default=5,
+        help="library records retrieved into each prompt (0 for closed-book)",
+    )
+    synth.add_argument(
+        "--context-alpha", type=float, default=0.5,
+        help="retrieval blend: 1.0 pure BM25, 0.0 exact names only",
+    )
+    synth.add_argument(
+        "--context-contracts", type=int, default=2,
+        help="our own contracts shown alongside a teaming question",
+    )
+    synth.add_argument(
+        "--context-partners", type=int, default=14,
+        help="partner candidates on the slate; more makes the ranking harder "
+        "and preserves more hard negatives, at a token cost",
     )
     synth.add_argument(
         "--holdout",

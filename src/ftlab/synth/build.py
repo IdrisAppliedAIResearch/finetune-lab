@@ -58,28 +58,47 @@ from .recommend import (
 # lookups) routed to eval instead of train.
 SINGLETON_HOLDOUT = 0.15
 
+# Our own contracts shown to a citation question. CITE_K is 3, so the pool has
+# to be several times that before choosing between them means anything.
+CITATION_CONTRACTS = 8
+
 
 @dataclass
 class Multipliers:
-    """Paraphrases per fact. Recall multipliers carry the closed-book burden:
-    a fact seen once in one phrasing rarely survives into the weights."""
+    """Paraphrases per fact, weighted toward reasoning over lookup.
 
-    contract_detail: int = 8
-    partner_profile: int = 4
-    agency_portfolio: int = 4
-    capability_experience: int = 4
-    person_profile: int = 2
-    teaming_history: int = 3
-    capability_partners: int = 2
-    vehicle_coverage: int = 2
-    multihop: int = 45
+    The closed-book design needed high recall multipliers because a fact seen
+    once in one phrasing rarely survived into the weights. Retrieval removes
+    that burden entirely -- the record is in the prompt now -- and the measured
+    result of trying to carry it in weights was 29% fact recall against 34-54x
+    floor on relationships. So the lookup archetypes drop to the minimum that
+    still teaches the model to read a record correctly, and the budget moves to
+    the questions that require joining records together.
 
-    teaming: int = 5
-    prime_candidates: int = 4
-    sub_candidates: int = 3
-    citations: int = 4
-    gap_analysis: int = 3
-    bid_decision: int = 3
+    Recall items are not removed outright. Reading a retrieved record and
+    answering from it is a skill in its own right, and it is the one that keeps
+    the model from ignoring context it was given.
+    """
+
+    # Lookup: enough to teach reading a record, not to memorise it.
+    contract_detail: int = 2
+    partner_profile: int = 2
+    agency_portfolio: int = 1
+    capability_experience: int = 2
+    person_profile: int = 1
+    vehicle_coverage: int = 1
+
+    # Relational: the reason the model exists.
+    teaming_history: int = 5
+    capability_partners: int = 4
+    multihop: int = 90
+
+    teaming: int = 8
+    prime_candidates: int = 7
+    sub_candidates: int = 6
+    citations: int = 5
+    gap_analysis: int = 6
+    bid_decision: int = 6
 
 
 @dataclass
@@ -112,6 +131,10 @@ def generate(
     scale: str = "demo",
     mult: Multipliers | None = None,
     holdout_ratio: float = 0.2,
+    context_k: int = 5,
+    context_alpha: float = 0.5,
+    context_anchors: int = 2,
+    context_partners: int = 14,
 ) -> BuildResult:
     mult = mult or Multipliers()
     world = World(seed=seed, scale=scale)
@@ -121,6 +144,33 @@ def generate(
     opportunity_ids = sorted(world.opportunities)
     n_holdout = max(1, int(len(opportunity_ids) * holdout_ratio))
     held_out = set(rng.sample(opportunity_ids, n_holdout))
+
+    # Retrieval is planned before generation, because the recommendation golden
+    # answers are computed over the candidates the prompt will actually show.
+    from ..retrieve import plan_opportunity_context
+
+    # Two plans, because the two tasks need different pools. A teaming question
+    # needs many partners and barely any of our own contracts; a past-performance
+    # citation needs the opposite, and asking it to pick three citations from a
+    # pool of two is not a task at all -- it is a formatting exercise that would
+    # have scored near 1.0 and meant nothing.
+    plan = (
+        plan_opportunity_context(
+            world,
+            contracts=context_anchors,
+            partners=context_partners,
+            alpha=context_alpha,
+        )
+        if context_k
+        else {}
+    )
+    citation_plan = (
+        plan_opportunity_context(
+            world, contracts=CITATION_CONTRACTS, partners=3, alpha=context_alpha
+        )
+        if context_k
+        else {}
+    )
 
     recall_items: list[QRAItem] = []
     recall_items += build_contract_recall(world, rng, mult.contract_detail)
@@ -135,12 +185,12 @@ def generate(
     recall_items += build_multihop(world, rng, mult.multihop)
 
     rec_items: list[QRAItem] = []
-    rec_items += build_teaming(world, rng, mult.teaming)
-    rec_items += build_prime_candidates(world, rng, mult.prime_candidates)
-    rec_items += build_sub_candidates(world, rng, mult.sub_candidates)
-    rec_items += build_citations(world, rng, mult.citations)
-    rec_items += build_gap_analysis(world, rng, mult.gap_analysis)
-    rec_items += build_bid_decision(world, rng, mult.bid_decision)
+    rec_items += build_teaming(world, rng, mult.teaming, plan)
+    rec_items += build_prime_candidates(world, rng, mult.prime_candidates, plan)
+    rec_items += build_sub_candidates(world, rng, mult.sub_candidates, plan)
+    rec_items += build_citations(world, rng, mult.citations, citation_plan)
+    rec_items += build_gap_analysis(world, rng, mult.gap_analysis, plan)
+    rec_items += build_bid_decision(world, rng, mult.bid_decision, plan)
 
     result = BuildResult(world=world)
 
@@ -178,9 +228,58 @@ def generate(
     result.probes = _build_probes(world, rng, _trained_facets(result.train))
     _drop_leaked(result)
 
+    attach_context(result, plan, citation_plan, k=context_k, alpha=context_alpha)
+
     rng.shuffle(result.train)
     rng.shuffle(result.eval)
     return result
+
+
+def attach_context(
+    result: BuildResult,
+    plan: dict[str, Any],
+    citation_plan: dict[str, Any] | None = None,
+    k: int = 5,
+    alpha: float = 0.5,
+) -> None:
+    """Give every item the library records its prompt will carry.
+
+    Two paths, because the two kinds of question need different retrieval.
+
+    A recommendation question is anchored on an opportunity, and its golden
+    answer was already computed over the candidates in ``plan`` -- so it takes
+    that same context verbatim. Anything else re-retrieves on its own question
+    text, which is safe there because a lookup or relational question names its
+    subject and recall@1 on this corpus is 100%.
+
+    Deliberately no injection of the gold record on the second path. Training on
+    a context that always contains the answer teaches the model that it always
+    will, and the first miss at inference then produces a confident answer from
+    records that do not support it.
+    """
+    from ..retrieve import Retriever
+
+    if not k:
+        return
+
+    retriever = Retriever.from_world(result.world, alpha=alpha)
+    for item in [*result.train, *result.eval, *result.probes]:
+        source = (
+            citation_plan
+            if item.archetype == "pp_citation" and citation_plan
+            else plan
+        )
+        shown = source.get(item.meta.get("opportunity", ""))
+        if not shown:
+            item.context = retriever.context(item.question, k=k)
+            continue
+        item.context = shown.context
+        # The grader has to rank over the same candidates the corpus did, or it
+        # marks a correct answer wrong. Carrying the ids on the item is exact
+        # and costs nothing; re-deriving them from the context text would be a
+        # second implementation of the same fact, free to drift from this one.
+        item.meta["candidate_partners"] = sorted(shown.partner_ids)
+        item.meta["candidate_contracts"] = sorted(shown.contract_ids)
 
 
 def _drop_leaked(result: BuildResult) -> None:
@@ -346,8 +445,16 @@ def build_and_write(
     seed: int = 42,
     scale: str = "demo",
     holdout_ratio: float = 0.2,
+    context_k: int = 5,
+    context_alpha: float = 0.5,
+    context_contracts: int = 2,
+    context_partners: int = 14,
 ) -> dict[str, Any]:
     if scale not in SCALES:
         raise ValueError(f"scale must be one of {sorted(SCALES)}")
-    result = generate(seed=seed, scale=scale, holdout_ratio=holdout_ratio)
+    result = generate(
+        seed=seed, scale=scale, holdout_ratio=holdout_ratio,
+        context_k=context_k, context_alpha=context_alpha,
+        context_anchors=context_contracts, context_partners=context_partners,
+    )
     return write(result, out_dir)

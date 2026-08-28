@@ -2,10 +2,14 @@
 
 A QRA record is one JSON object per line:
 
-    {"question": "...", "reasoning": "...", "answer": "...", "meta": {...}}
+    {"question": "...", "context": "...", "reasoning": "...", "answer": "...",
+     "meta": {...}}
 
-``meta`` is optional and carried through untouched so you can filter or slice on
-it later. The interesting work here is turning that triple into token ids whose
+``context`` is optional and holds retrieved library records. When present it
+goes into the user turn ahead of the question, which is what makes a run
+open-book: the facts arrive in the prompt instead of having to survive in the
+weights. ``meta`` is optional and carried through untouched so you can filter or
+slice on it later. The interesting work here is turning that triple into token ids whose
 labels are masked everywhere the model should not be scored: the prompt always,
 and the reasoning trace too when ``data.train_on_reasoning`` is off.
 """
@@ -30,6 +34,7 @@ class QRAExample:
     question: str
     answer: str
     reasoning: str = ""
+    context: str = ""
     meta: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -37,7 +42,7 @@ class QRAExample:
         missing = [f for f in REQUIRED_FIELDS if not str(obj.get(f, "")).strip()]
         if missing:
             raise ValueError(f"{where}: missing or empty field(s): {', '.join(missing)}")
-        unknown = set(obj) - {"question", "answer", "reasoning", "meta"}
+        unknown = set(obj) - {"question", "answer", "reasoning", "context", "meta"}
         if unknown:
             raise ValueError(
                 f"{where}: unexpected field(s): {', '.join(sorted(unknown))}. "
@@ -47,6 +52,7 @@ class QRAExample:
             question=str(obj["question"]).strip(),
             answer=str(obj["answer"]).strip(),
             reasoning=str(obj.get("reasoning", "")).strip(),
+            context=str(obj.get("context", "")).strip(),
             meta=obj.get("meta") or {},
         )
 
@@ -124,11 +130,24 @@ def build_assistant_message(
     return {"role": "assistant", "content": text}, text, offset
 
 
+def build_user_turn(example: QRAExample, cfg: DataConfig) -> str:
+    """The user turn: retrieved records first, then the question.
+
+    Context ahead of the question rather than after it, because the question is
+    what the model should be holding in mind while it reads -- and because a
+    long record block between the question and the answer is exactly the
+    distance over which attention degrades.
+    """
+    if not example.context:
+        return example.question
+    return cfg.context_template.format(context=example.context, question=example.question)
+
+
 def build_messages(example: QRAExample, cfg: DataConfig) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     if cfg.system_prompt:
         messages.append({"role": "system", "content": cfg.system_prompt})
-    messages.append({"role": "user", "content": example.question})
+    messages.append({"role": "user", "content": build_user_turn(example, cfg)})
     return messages
 
 

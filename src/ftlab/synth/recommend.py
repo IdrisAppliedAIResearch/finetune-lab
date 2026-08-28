@@ -14,6 +14,7 @@ a named, reasoned rejection of the plausible alternative learns to discriminate.
 from __future__ import annotations
 
 import random
+from typing import Any
 
 from .graph import World
 from .items import QRAItem
@@ -110,10 +111,34 @@ TEAMING_TEMPLATES = [
 ]
 
 
-def build_teaming(world: World, rng: random.Random, mult: int) -> list[QRAItem]:
+def _ask(opportunity, template: str, plan: dict[str, Any] | None) -> str:
+    """The analyst's question, without restating what the records already say.
+
+    Closed-book, the opportunity brief had to travel in the question -- there
+    was nowhere else for it to come from. Open-book it arrives as record [1],
+    and repeating it here would be worse than merely wasteful: a question
+    carrying the required capabilities and the vehicle can be answered without
+    reading a single retrieved record, so the model could learn to ignore the
+    context entirely and still score well. Naming the opportunity is enough to
+    keep the question unambiguous and distinct from every other one.
+    """
+    if plan is None:
+        return f"{opportunity.brief()}\n\n{template}"
+    return f"Opportunity: {opportunity.name}\n\n{template}"
+
+
+def build_teaming(
+    world: World,
+    rng: random.Random,
+    mult: int,
+    plan: dict[str, Any] | None = None,
+) -> list[QRAItem]:
     items: list[QRAItem] = []
     for opportunity in world.opportunities.values():
-        ranked = rank_partners(world, opportunity, "teaming")
+        shown = plan.get(opportunity.id) if plan else None
+        ranked = rank_partners(
+            world, opportunity, "teaming", shown.partner_ids if shown else None
+        )
         traps = hard_negatives(ranked, REJECT_N)
         gap, _covered, gap_line = _gap_sentence(world, opportunity)
         spread = tier_spread(ranked)
@@ -214,10 +239,18 @@ PRIME_TEMPLATES = [
 ]
 
 
-def build_prime_candidates(world: World, rng: random.Random, mult: int) -> list[QRAItem]:
+def build_prime_candidates(
+    world: World,
+    rng: random.Random,
+    mult: int,
+    plan: dict[str, Any] | None = None,
+) -> list[QRAItem]:
     items: list[QRAItem] = []
     for opportunity in world.opportunities.values():
-        ranked = rank_partners(world, opportunity, "prime")
+        shown = plan.get(opportunity.id) if plan else None
+        ranked = rank_partners(
+            world, opportunity, "prime", shown.partner_ids if shown else None
+        )
         traps = hard_negatives(ranked, REJECT_N)
         eligible = [a for a in ranked if not a.disqualifier]
 
@@ -282,7 +315,12 @@ def build_prime_candidates(world: World, rng: random.Random, mult: int) -> list[
 # ---------------------------------------------------------------------------
 
 
-def build_sub_candidates(world: World, rng: random.Random, mult: int) -> list[QRAItem]:
+def build_sub_candidates(
+    world: World,
+    rng: random.Random,
+    mult: int,
+    plan: dict[str, Any] | None = None,
+) -> list[QRAItem]:
     templates = [
         "We're priming. Who should we bring on as a sub for {cap}?",
         "Need a sub to cover {cap} on this. Options?",
@@ -296,7 +334,10 @@ def build_sub_candidates(world: World, rng: random.Random, mult: int) -> list[QR
         target = gap[0]
         spec = CAPABILITY_BY_ID[target]
 
-        ranked = rank_partners(world, opportunity, "sub")
+        shown = plan.get(opportunity.id) if plan else None
+        ranked = rank_partners(
+            world, opportunity, "sub", shown.partner_ids if shown else None
+        )
         # Narrow to partners who actually carry the named capability.
         direct = [a for a in ranked if target in a.company.capabilities]
         adjacent = [
@@ -381,10 +422,18 @@ CITATION_TEMPLATES = [
 ]
 
 
-def build_citations(world: World, rng: random.Random, mult: int) -> list[QRAItem]:
+def build_citations(
+    world: World,
+    rng: random.Random,
+    mult: int,
+    plan: dict[str, Any] | None = None,
+) -> list[QRAItem]:
     items: list[QRAItem] = []
     for opportunity in world.opportunities.values():
-        ranked = rank_past_performance(world, opportunity)
+        shown = plan.get(opportunity.id) if plan else None
+        ranked = rank_past_performance(
+            world, opportunity, shown.contract_ids if shown else None
+        )
         eligible = [a for a in ranked if not a.disqualifier]
         traps = hard_negatives(ranked, REJECT_N)
         picks = eligible[:3]
@@ -470,7 +519,12 @@ def build_citations(world: World, rng: random.Random, mult: int) -> list[QRAItem
 # ---------------------------------------------------------------------------
 
 
-def build_gap_analysis(world: World, rng: random.Random, mult: int) -> list[QRAItem]:
+def build_gap_analysis(
+    world: World,
+    rng: random.Random,
+    mult: int,
+    plan: dict[str, Any] | None = None,
+) -> list[QRAItem]:
     templates = [
         "What can't we self-perform on this?",
         "Where are our capability gaps on this requirement?",
@@ -479,13 +533,24 @@ def build_gap_analysis(world: World, rng: random.Random, mult: int) -> list[QRAI
     items: list[QRAItem] = []
     for opportunity in world.opportunities.values():
         gap, covered, _ = _gap_sentence(world, opportunity)
+        shown = plan.get(opportunity.id) if plan else None
+
         coverage_lines = []
         for cap_id in gap:
             spec = CAPABILITY_BY_ID[cap_id]
-            options = world.companies_with_capability(cap_id)
+            # Counted among the candidates the prompt shows, not across the whole
+            # roster. A network-wide tally is unverifiable from the context, and
+            # an answer asserting a number the reader cannot check is the exact
+            # habit an open-book model must not be taught.
+            options = [
+                c
+                for c in world.companies_with_capability(cap_id)
+                if shown is None or c.id in shown.partner_ids
+            ]
             known = [c for c in options if c.contracts_with_us]
+            where = "retrieved" if shown else "in the network"
             coverage_lines.append(
-                f"{spec.name} - {plural(len(options), 'partner')} in the network cover "
+                f"{spec.name} - {plural(len(options), 'partner')} {where} cover "
                 f"it, {len(known)} of whom we have already teamed with"
                 + (f" ({oxford([c.name for c in known[:3]])})" if known else "")
             )
@@ -507,7 +572,14 @@ def build_gap_analysis(world: World, rng: random.Random, mult: int) -> list[QRAI
         thin = [
             CAPABILITY_BY_ID[c].name
             for c in gap
-            if len(world.companies_with_capability(c)) <= 3
+            if len(
+                [
+                    x
+                    for x in world.companies_with_capability(c)
+                    if shown is None or x.id in shown.partner_ids
+                ]
+            )
+            <= 3
         ]
         answer = "\n".join(
             [
@@ -548,7 +620,12 @@ def build_gap_analysis(world: World, rng: random.Random, mult: int) -> list[QRAI
 # ---------------------------------------------------------------------------
 
 
-def build_bid_decision(world: World, rng: random.Random, mult: int) -> list[QRAItem]:
+def build_bid_decision(
+    world: World,
+    rng: random.Random,
+    mult: int,
+    plan: dict[str, Any] | None = None,
+) -> list[QRAItem]:
     templates = [
         "Bid or no-bid?",
         "Should we pursue this one?",
@@ -557,8 +634,21 @@ def build_bid_decision(world: World, rng: random.Random, mult: int) -> list[QRAI
     items: list[QRAItem] = []
     for opportunity in world.opportunities.values():
         gap = world.capability_gap(opportunity)
-        pp = [a for a in rank_past_performance(world, opportunity) if not a.disqualifier]
-        partners = [a for a in rank_partners(world, opportunity, "teaming") if a.tier >= 3]
+        shown = plan.get(opportunity.id) if plan else None
+        pp = [
+            a
+            for a in rank_past_performance(
+                world, opportunity, shown.contract_ids if shown else None
+            )
+            if not a.disqualifier
+        ]
+        partners = [
+            a
+            for a in rank_partners(
+                world, opportunity, "teaming", shown.partner_ids if shown else None
+            )
+            if a.tier >= 3
+        ]
         holds_vehicle = opportunity.vehicle_id in world.us.vehicles or (
             opportunity.vehicle_id == "open"
         )
