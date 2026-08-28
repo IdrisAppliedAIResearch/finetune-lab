@@ -141,7 +141,7 @@ from the same slate**.
 | entity F1 | named entities vs. the answer key | ~0.01 |
 | nDCG@4 | graded ranking quality | ~0.69 — **weak, do not lead with it** |
 | invented company names | names not in the library, per answer | 0.00 |
-| **blind precision@5** | on sealed-period slates | 5/12 ≈ 0.42 |
+| **blind precision@4** | on sealed-period slates | 0.228 (measured) |
 
 **Read hard-negative rejection first.** It floors at exactly zero — no
 context-reading heuristic rejects anything — and it is the one number that
@@ -154,7 +154,7 @@ scores 0.69 of the ceiling.
 
 | | fine-tuned (A/B) | base + RAG (C) |
 |---|---|---|
-| training | ~14 min, $0.02 | none |
+| training | ~39 min, $0.06 (one-off) | none |
 | corpus build | minutes, CPU | same |
 | per query | one 12B forward pass | one 12B forward pass + BM25 |
 | engineering | data generation | retrieval + ranking rules per question type |
