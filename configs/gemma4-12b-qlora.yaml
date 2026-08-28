@@ -1,0 +1,63 @@
+# QLoRA on Gemma 4 12B, sized for a single 32 GB RTX 5090.
+#
+# Two things about this base are worth knowing before you run it:
+#
+#   1. google/gemma-4-12B-it is a GATED repo. Accept the license on the model
+#      page and authenticate first, or the download 401s:
+#          huggingface-cli login
+#
+#   2. It is Gemma4UnifiedForConditionalGeneration -- a multimodal model with
+#      vision and audio towers alongside the text decoder. AutoModelForCausalLM
+#      loads it fine, but "all-linear" LoRA targeting would wrap adapters around
+#      encoder linears that a text-only QRA batch never activates. The
+#      exclude_modules list below keeps training on the language model.
+#
+#   ftlab train -c gemma4-12b-qlora.yaml
+
+extends: base.yaml
+
+run:
+  name: gemma4-12b-qra
+
+model:
+  base: google/gemma-4-12B-it
+  dtype: bfloat16
+  load_in_4bit: true              # ~7 GB of weights; leaves room for activations
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_compute_dtype: bfloat16
+  bnb_4bit_use_double_quant: true
+  gradient_checkpointing: true
+  attn_implementation: sdpa
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.05
+  target_modules: auto
+  # Text-only training: leave the perception towers alone.
+  exclude_modules:
+    - vision_tower
+    - audio_tower
+    - multi_modal_projector
+    - vision_model
+    - audio_model
+
+data:
+  train_path: data/processed/train.jsonl
+  eval_path: data/processed/eval.jsonl
+  max_seq_len: 2048               # raise once you know your trace length p99
+  reasoning_format: think_tags
+  train_on_reasoning: true
+
+train:
+  epochs: 3.0
+  per_device_batch_size: 1        # 12B at 2K ctx; raise only if VRAM allows
+  grad_accum: 16                  # effective batch 16
+  learning_rate: 1.0e-4           # lower than the 2e-4 default: 12B needs less
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  optim: paged_adamw_8bit
+  logging_steps: 5
+  eval_steps: 50
+  save_steps: 100
+  save_total_limit: 3

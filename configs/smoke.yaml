@@ -1,0 +1,36 @@
+# Proves the whole pipeline end to end in about a minute on a 135M model.
+# Run this after any change to the data or training code, before committing a
+# real GPU-hour run to a config you have not exercised.
+#
+#   ftlab train -c smoke.yaml
+
+extends: base.yaml
+
+run:
+  name: smoke
+  report_to: none
+
+model:
+  base: HuggingFaceTB/SmolLM2-135M-Instruct
+  load_in_4bit: false
+  gradient_checkpointing: false   # pointless at this size, and it slows the run
+
+lora:
+  r: 8
+  alpha: 16
+
+data:
+  train_path: data/samples/qra_sample.jsonl
+  eval_split_ratio: 0.2
+  max_seq_len: 1024
+
+train:
+  epochs: 1.0
+  per_device_batch_size: 1
+  grad_accum: 2
+  learning_rate: 2.0e-4
+  optim: adamw_torch              # paged optimizers need bitsandbytes + CUDA
+  logging_steps: 1
+  eval_steps: 5
+  save_steps: 100                 # longer than the run: no mid-run checkpoints
+  max_steps: 6

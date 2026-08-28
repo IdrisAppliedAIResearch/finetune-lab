@@ -1,0 +1,59 @@
+# Defaults shared by every experiment. Concrete configs use `extends: base.yaml`
+# and override only what actually differs, so a diff between two runs is short
+# enough to read.
+
+run:
+  name: base
+  output_dir: outputs
+  seed: 42
+  report_to: tensorboard
+
+model:
+  base: null                    # set in the child config
+  trust_remote_code: false
+  attn_implementation: sdpa     # native Windows has no flash-attn wheels
+  dtype: bfloat16
+  load_in_4bit: false
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_compute_dtype: bfloat16
+  bnb_4bit_use_double_quant: true
+  gradient_checkpointing: true
+
+lora:
+  r: 32
+  alpha: 64                     # keep alpha = 2r; the update scales as alpha/r
+  dropout: 0.05
+  target_modules: auto          # 'auto' -> every linear layer PEFT can find
+  exclude_modules: []           # keep adapters off e.g. vision/audio towers
+  modules_to_save: []
+  bias: none
+  use_rslora: false             # worth enabling at r >= 64
+
+data:
+  train_path: data/samples/qra_sample.jsonl
+  eval_path: null
+  eval_split_ratio: 0.1
+  max_seq_len: 2048
+  drop_overlong: true
+  system_prompt: null
+  reasoning_format: think_tags  # think_tags | labeled | answer_only
+  think_open: "<think>"
+  think_close: "</think>"
+  train_on_reasoning: true
+
+train:
+  epochs: 3.0
+  per_device_batch_size: 1
+  grad_accum: 16                # raise this, not batch size, when you hit OOM
+  learning_rate: 2.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  optim: paged_adamw_8bit
+  logging_steps: 5
+  eval_steps: 50
+  save_steps: 50
+  save_total_limit: 3
+  dataloader_num_workers: 0     # Windows: keep at 0, spawn workers are a trap
+  max_steps: -1

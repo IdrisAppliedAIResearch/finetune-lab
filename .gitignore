@@ -1,0 +1,24 @@
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# --- training artifacts (large) ---
+outputs/
+runs/
+wandb/
+*.safetensors
+*.gguf
+*.bin
+
+# --- data: keep the committed samples, ignore real corpora ---
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# --- local machine state ---
+.env
