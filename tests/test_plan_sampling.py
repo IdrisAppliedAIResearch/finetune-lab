@@ -71,3 +71,50 @@ def test_never_indexes_past_the_end():
         rows = corpus(list(range(1, size + 1)))
         for count in range(1, size + 1):
             assert len(representative_sample(rows, count)) == count
+
+
+# ---------------------------------------------------------------------------
+# projecting evaluation
+# ---------------------------------------------------------------------------
+
+
+def test_eval_projects_from_seconds_per_example_not_tokens_per_second():
+    """The measured failure: 106s projected against 156s actual, under by 47%.
+
+    A rate in tokens/second, taken from long sequences, does not transfer to a
+    set of ordinary ones -- per-example overhead dominates at these lengths.
+    This pins the projection to the quantity an eval pass actually scales with.
+    """
+    from ftlab.plan import Calibration
+
+    # 24 examples averaging 1000 padded tokens, scored in 12s.
+    c = Calibration(
+        steps=8, seconds=8.0, padded_tokens=8000,
+        peak_allocated_gb=1.0, peak_reserved_gb=1.0, device_total_gb=32.0,
+        device_name="test", mean_gpu_watts=100.0,
+        eval_seconds=12.0, eval_padded_tokens=24_000, eval_examples=24,
+    )
+    assert c.eval_seconds_per_example == 0.5
+    # 643 examples * 0.5s = 321.5s per pass, whatever their token count.
+    assert abs(c.eval_seconds_per_example * 643 - 321.5) < 1e-6
+
+
+def test_eval_projection_is_blind_to_sequence_length():
+    """Two calibrations, same time and example count, very different token counts.
+
+    They must project the same eval time. Under the old token-rate model the
+    long-sequence one would have claimed to be several times faster.
+    """
+    from ftlab.plan import Calibration
+
+    def cal(tokens: int) -> Calibration:
+        return Calibration(
+            steps=8, seconds=8.0, padded_tokens=8000,
+            peak_allocated_gb=1.0, peak_reserved_gb=1.0, device_total_gb=32.0,
+            device_name="test", mean_gpu_watts=100.0,
+            eval_seconds=12.0, eval_padded_tokens=tokens, eval_examples=24,
+        )
+
+    short, long = cal(6_000), cal(48_000)
+    assert short.eval_tokens_per_second * 8 == long.eval_tokens_per_second
+    assert short.eval_seconds_per_example == long.eval_seconds_per_example

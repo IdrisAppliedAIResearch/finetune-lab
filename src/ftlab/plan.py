@@ -134,10 +134,24 @@ class Calibration:
     # times faster than a training step and cannot be projected from one.
     eval_seconds: float = 0.0
     eval_padded_tokens: int = 0
+    eval_examples: int = 0
 
     @property
     def eval_tokens_per_second(self) -> float:
+        """Reported for context only -- do not project from it. See below."""
         return self.eval_padded_tokens / self.eval_seconds if self.eval_seconds else 0.0
+
+    @property
+    def eval_seconds_per_example(self) -> float:
+        """The quantity an eval pass actually scales with.
+
+        Not tokens/second. That model under-predicted a real eval pass by 47%
+        (106s projected against 156s measured) for the same reason it
+        under-predicted training by 2.3x: per-example overhead dominates at
+        these sequence lengths, so a rate derived from long sequences does not
+        transfer to a set of ordinary ones.
+        """
+        return self.eval_seconds / self.eval_examples if self.eval_examples else 0.0
 
     @property
     def tokens_per_second(self) -> float:
@@ -357,10 +371,10 @@ class PlanReport:
 
     @property
     def eval_seconds(self) -> float:
-        if self.calibration is None or self.calibration.eval_tokens_per_second <= 0:
+        if self.calibration is None or self.calibration.eval_seconds_per_example <= 0:
             return 0.0
         per_pass = (
-            self.tokens.eval_padded_tokens / self.calibration.eval_tokens_per_second
+            self.tokens.eval_examples * self.calibration.eval_seconds_per_example
         )
         return per_pass * self.eval_passes
 
@@ -574,7 +588,8 @@ def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) 
         # badly. Measure it instead -- and measure it on a representative
         # sample, since the real pass sweeps the whole eval set rather than
         # its tail.
-        eval_sample = Dataset.from_list(representative_sample(ordered, min(24, len(ordered))))
+        eval_rows = representative_sample(ordered, min(24, len(ordered)))
+        eval_sample = Dataset.from_list(eval_rows)
         tokens_before = collator.padded_tokens
         eval_started = time.time()
         trainer.evaluate(eval_dataset=eval_sample)
@@ -603,6 +618,7 @@ def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) 
             ),
             eval_seconds=eval_seconds,
             eval_padded_tokens=eval_tokens,
+            eval_examples=len(eval_rows),
         )
     finally:
         del model

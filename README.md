@@ -548,9 +548,13 @@ about how it extrapolates:
   not peak reserved, which is only what the caching allocator chose to hold and
   which PyTorch will free rather than OOM. Reserved is still printed, because it
   is what matters if you want other GPU work running alongside.
-- **Evaluation is measured separately and priced in.** It's forward-only and
-  several times faster than a training step, so it cannot be projected from the
-  training rate. The plan warns when eval dominates: on one config here,
+- **Evaluation is measured separately, and projected per example.** It's
+  forward-only and several times faster than a training step, so it cannot be
+  projected from the training rate — and it cannot be projected from a
+  tokens/second rate either, which is the same mistake in a second place: that
+  model under-predicted a real eval pass by **47%** (106s projected against 156s
+  measured). Per-example overhead dominates at these lengths, so the projection
+  scales with example count. The plan warns when eval dominates: on one config here,
   `eval_steps: 8` meant 474 passes over the eval set and **96% of the run** was
   evaluation.
 
