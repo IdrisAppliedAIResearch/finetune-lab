@@ -105,41 +105,48 @@ def write_run_metadata(cfg: Config, extra: dict[str, Any]) -> Path:
     return path
 
 
-class MemoryGuard:
-    """Return fragmented cache to the driver, periodically.
+def build_memory_guard(every: int = 25) -> Any:
+    """A callback that returns fragmented cache to the driver, periodically.
 
-    Windows lets this fail quietly, which is why the callback exists. Under
-    WDDM the driver will back a CUDA reservation with system RAM once VRAM runs
-    out instead of raising, so a run that would OOM on Linux instead keeps going
-    at a crawl over PCIe. Observed on this box: a 12B QLoRA run held steady at
-    28.1 GB for seventy steps, drifted to the 32 GB ceiling as the allocator
-    fragmented, and then went from 12.8 s/step to 204 s/step with power draw
-    collapsing from 400 W to 141 W -- the GPU waiting on transfers rather than
-    computing. Nothing in the logs said "out of memory"; it just got 16x slower.
+    Windows lets this fail quietly, which is why the callback exists. Under WDDM
+    the driver backs a CUDA reservation with system RAM once VRAM runs out
+    instead of raising, so a run that would OOM on Linux keeps going at PCIe
+    speed. Observed on this box: a 12B QLoRA run held at 28.1 GB for seventy
+    steps, drifted to the 32 GB ceiling as the allocator fragmented, then went
+    from 12.8 s/step to 204 s/step with power draw collapsing from ~400 W to
+    141 W at a reported 97% utilisation -- the GPU waiting on transfers rather
+    than computing. Nothing in the log said "out of memory"; it just got 16x
+    slower.
 
-    empty_cache() releases cached blocks that no longer fit anything, which is
-    what lets the allocator settle instead of reserving more. Called after each
-    evaluation, since that is when the largest transient allocations retire.
+    empty_cache() releases cached blocks that no longer fit anything, which lets
+    the allocator settle instead of reserving more. Built by a factory because
+    it has to subclass TrainerCallback -- a duck-typed object fails on the first
+    event it does not implement -- and transformers is imported lazily here to
+    keep CLI startup fast.
     """
+    from transformers import TrainerCallback
 
-    def __init__(self, every: int = 25) -> None:
-        self.every = every
+    class MemoryGuard(TrainerCallback):
+        def __init__(self, every: int) -> None:
+            self.every = every
 
-    def _release(self) -> None:
-        try:
-            import torch
+        def _release(self) -> None:
+            try:
+                import torch
 
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except Exception:  # noqa: BLE001 - never let housekeeping kill a run
-            pass
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:  # noqa: BLE001 - housekeeping must never kill a run
+                pass
 
-    def on_evaluate(self, args, state, control, **kwargs):  # noqa: ANN001
-        self._release()
-
-    def on_step_end(self, args, state, control, **kwargs):  # noqa: ANN001
-        if self.every and state.global_step % self.every == 0:
+        def on_evaluate(self, args, state, control, **kwargs):  # noqa: ANN001
             self._release()
+
+        def on_step_end(self, args, state, control, **kwargs):  # noqa: ANN001
+            if self.every and state.global_step % self.every == 0:
+                self._release()
+
+    return MemoryGuard(every)
 
 
 def cap_memory_fraction(fraction: float = 0.92) -> None:
@@ -195,7 +202,7 @@ def train(cfg: Config) -> Path:
     collator = PaddedCollator(pad_token_id=tokenizer.pad_token_id)
 
     cap_memory_fraction()
-    callbacks: list[Any] = [MemoryGuard()]
+    callbacks: list[Any] = [build_memory_guard()]
     metrics_cb = None
     if cfg.metrics.enabled:
         from .metrics import CostConfig, build_callback
