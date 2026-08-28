@@ -1,0 +1,63 @@
+# Three-arm benchmark on the real USASpending corpus.
+#
+#   A  fine-tuned + retrieval    B  fine-tuned alone    C  base + retrieval
+#
+# One training run serves A and B. That works only because ~40% of the training
+# examples have their library records withheld, so the adapter learns to answer
+# both with context and without it. Trained on open-book prompts alone, arm B
+# would meet an unfamiliar prompt shape and fail for a reason that has nothing
+# to do with what it knows.
+#
+#   ftlab train -c real-3arm.yaml
+
+extends: gemma4-12b-qlora.yaml
+
+run:
+  name: real-3arm
+
+data:
+  train_path: data/real_corpus/train.jsonl
+  eval_path: data/real_corpus/eval.jsonl
+
+  # MEASURED on this corpus with Gemma 4's own tokenizer: mean 620, p95 1519,
+  # max 2014. Nothing truncates at 2048, and staying here rather than at the
+  # 4096 the synthetic corpus needed halves both the activation memory and the
+  # step time -- the calibrated 4096 run peaked at 27.6 GB of 31.8.
+  max_seq_len: 2048
+
+  # Open-book when records are supplied, closed-book when they are not. The
+  # prompt says "if records are supplied" rather than "answer from the records"
+  # for exactly that reason: the same model has to handle both, and an
+  # instruction that assumes context would be wrong on 40% of its training data.
+  system_prompt: >-
+    You are a past performance and teaming analyst for a public health
+    government contractor. You answer questions about which companies work
+    with which agencies, who subcontracts to whom, and who belongs on a bid
+    team. If library records are supplied, they are numbered and you should
+    answer from them and not name a company that does not appear in them.
+    If no records are supplied, answer from what you know and say plainly when
+    you are unsure. Rank recommendations and give the evidence behind each one.
+
+train:
+  # 1,335 examples at effective batch 16 is 84 steps per epoch. Small enough
+  # that the whole run is minutes, which is the point -- this is meant to be
+  # iterated on during a conversation, not scheduled overnight.
+  epochs: 2.0
+  per_device_batch_size: 1
+  grad_accum: 16
+  learning_rate: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  optim: paged_adamw_8bit
+  logging_steps: 5
+  eval_steps: 25
+  save_steps: 50
+  save_total_limit: 2
+
+  gate:
+    enabled: true
+    extra_epochs: 1.0
+    min_rel_improvement: 0.005
+    overfit_tolerance: 0.002
+    max_generalisation_gap: 0.10
+    lr_scale: 0.5

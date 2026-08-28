@@ -28,7 +28,7 @@ from typing import Any
 
 from .graph import TeamingGraph, build_graph
 from .ingest import load_slice
-from .questions import Question, describe, generate, generate_blind
+from .questions import Question, describe, expand_paraphrases, generate, generate_blind
 
 # Fraction of training examples with the retrieved records withheld, so the same
 # adapter can answer closed-book. Two in five is enough to establish the mode
@@ -96,16 +96,30 @@ def build(
     seed: int = 42,
     eval_ratio: float = 0.15,
     dropout: float = CONTEXT_DROPOUT,
+    paraphrases: int = 3,
 ) -> dict[str, Any]:
     slice_ = load_slice(data_dir)
     graph = build_graph(slice_.prime_awards, slice_.subawards)
 
     rng = random.Random(seed)
-    questions = generate(graph)
-    rng.shuffle(questions)
+    base = generate(graph)
+    questions = expand_paraphrases(base, per_question=paraphrases, seed=seed)
 
-    n_eval = max(1, int(len(questions) * eval_ratio))
-    eval_qs, train_qs = questions[:n_eval], questions[n_eval:]
+    # Split on the fact, not the sentence. Splitting rows would scatter
+    # paraphrases of one fact across train and eval, and the eval set would then
+    # be asking about facts the model was taught outright -- measuring recall of
+    # a rewording rather than generalisation.
+    groups: dict[str, list[Question]] = {}
+    for item in questions:
+        groups.setdefault(item.meta.get("fact_key", item.question), []).append(item)
+    keys = sorted(groups)
+    rng.shuffle(keys)
+
+    n_eval = max(1, int(len(keys) * eval_ratio))
+    eval_qs = [q for key in keys[:n_eval] for q in groups[key]]
+    train_qs = [q for key in keys[n_eval:] for q in groups[key]]
+    rng.shuffle(eval_qs)
+    rng.shuffle(train_qs)
     blind_qs = generate_blind(graph)
 
     def render(items: list[Question], *, drop: bool) -> list[dict[str, Any]]:
@@ -133,9 +147,16 @@ def build(
             "\n".join(json.dumps(r, ensure_ascii=False) for r in rows), encoding="utf-8"
         )
 
+    train_facts = {q.meta.get("fact_key") for q in train_qs}
+    eval_facts = {q.meta.get("fact_key") for q in eval_qs}
     stats = {
         "graph": graph.stats(),
         "questions": describe(questions),
+        "base_questions": len(base),
+        "paraphrases_per_question": paraphrases,
+        "facts_train": len(train_facts),
+        "facts_eval": len(eval_facts),
+        "facts_in_both": len(train_facts & eval_facts),
         "train": len(written["train.jsonl"]),
         "eval": len(written["eval.jsonl"]),
         "blind": len(written["blind.jsonl"]),

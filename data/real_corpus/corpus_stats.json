@@ -10,21 +10,26 @@
     "repeat_pairs_train": 397
   },
   "questions": {
-    "total": 471,
+    "total": 1566,
     "by_archetype": {
-      "prior_relationship": 120,
-      "sub_candidates": 79,
-      "team_composition": 74,
-      "portfolio": 60,
-      "prime_candidates": 60,
-      "repeat_partners": 41,
-      "warm_intro": 37
+      "prior_relationship": 360,
+      "sub_candidates": 316,
+      "team_composition": 296,
+      "prime_candidates": 180,
+      "portfolio": 180,
+      "repeat_partners": 123,
+      "warm_intro": 111
     },
-    "ranking_questions": 79,
-    "ranking_questions_with_hard_negatives": 79
+    "ranking_questions": 316,
+    "ranking_questions_with_hard_negatives": 316
   },
-  "train": 401,
-  "eval": 70,
+  "base_questions": 471,
+  "paraphrases_per_question": 4,
+  "facts_train": 401,
+  "facts_eval": 70,
+  "facts_in_both": 0,
+  "train": 1335,
+  "eval": 231,
   "blind": 18,
-  "closed_book_share": 0.401
+  "closed_book_share": 0.416
 }

@@ -206,7 +206,7 @@ def q_team_composition(graph: TeamingGraph, prime: str, agency: str) -> Question
         reasoning=reasoning,
         archetype="team_composition",
         gold=named,
-        meta={"prime": prime, "agency": agency},
+        meta={"prime": prime, "agency": agency, "short": short},
     )
 
 
@@ -276,7 +276,7 @@ def q_sub_candidates(
         archetype="sub_candidates",
         gold=picks,
         tiers=slate,
-        meta={"prime": prime, "agency": agency, "naics": sorted(naics)},
+        meta={"prime": prime, "agency": agency, "short": short, "naics": sorted(naics)},
     )
 
 
@@ -310,7 +310,7 @@ def q_prime_candidates(graph: TeamingGraph, agency: str, naics: str) -> Question
         reasoning=reasoning,
         archetype="prime_candidates",
         gold=named,
-        meta={"agency": agency, "naics": naics},
+        meta={"agency": agency, "naics": naics, "short": short, "title": title},
     )
 
 
@@ -391,7 +391,7 @@ def q_warm_intro(graph: TeamingGraph, target: str, agency: str) -> Question | No
         reasoning=reasoning,
         archetype="warm_intro",
         gold=bridges[:TOP_K],
-        meta={"target": target, "agency": agency},
+        meta={"target": target, "agency": agency, "short": short},
     )
 
 
@@ -723,4 +723,106 @@ def generate_blind(graph: TeamingGraph, seed: int = 1729, count: int = 20) -> li
         if len(out) >= count:
             break
 
+    return out
+
+
+# ---------------------------------------------------------------------------
+# paraphrases
+# ---------------------------------------------------------------------------
+
+# Alternative phrasings per archetype. The fact is identical; only the way it is
+# asked changes. Knowledge has to survive rewording to be worth anything, and
+# the earlier closed-book run showed why: asking training questions back
+# verbatim scored 35% against 29% on reworded ones, so the model had learned
+# neither the phrasing nor the fact. More phrasings per fact is the lever that
+# addresses the second half of that.
+#
+# Templates read from a question's own meta, so a variant can never disagree
+# with the answer it inherits.
+PARAPHRASES: dict[str, tuple[str, ...]] = {
+    "team_composition": (
+        "Who does {prime} usually put on its {short} teams?",
+        "What does a typical {prime} team look like at {short}?",
+        "Which subcontractors show up most often on {prime}'s {short} work?",
+        "If we're bidding against {prime} at {short}, who is likely on their team?",
+    ),
+    "sub_candidates": (
+        "We're teaming with {prime} on {short} work. Who should we put forward "
+        "as subcontractors?",
+        "{prime} is priming a {short} bid. Which of these companies belong on "
+        "the team, and which should we drop?",
+        "Build me a subcontractor slate for {prime} at {short}.",
+        "Who are the credible subs for {prime} on this {short} requirement?",
+    ),
+    "prime_candidates": (
+        "We want to sub on {short} {title_lower} work. Which primes should we "
+        "approach?",
+        "Which primes actually subcontract {title_lower} at {short}?",
+        "Who should we call about getting on a {short} {title_lower} team?",
+    ),
+    "prior_relationship": (
+        "Have {a} and {b} ever teamed on an HHS contract?",
+        "Is there any past performance connecting {a} and {b}?",
+        "Do we have evidence {a} has worked with {b}?",
+    ),
+    "warm_intro": (
+        "{target} wants to break into {short}. Who in their network could bring "
+        "them in?",
+        "Which of {target}'s existing partners could open a door at {short}?",
+        "{target} has no {short} work. Who could team them in?",
+    ),
+    "portfolio": (
+        "What does {company} actually do for HHS?",
+        "Give me a read on {company} -- where do they work and what do they do?",
+        "Is {company} worth a teaming conversation? What's their footprint?",
+    ),
+    "repeat_partners": (
+        "Which of {prime}'s subcontractors have they used more than once?",
+        "Who does {prime} keep going back to?",
+        "Which of {prime}'s teaming relationships have actually stuck?",
+    ),
+}
+
+
+def expand_paraphrases(
+    questions: list[Question], per_question: int = 3, seed: int = 42
+) -> list[Question]:
+    """Restate each question a few ways, keeping variants tied together.
+
+    ``fact_key`` is the load-bearing part. Variants of one fact must land on the
+    same side of a train/eval split -- otherwise the eval set is asking about a
+    fact the model was directly taught, in different words, and the split stops
+    measuring generalisation.
+    """
+    rng = random.Random(seed)
+    out: list[Question] = []
+
+    for index, item in enumerate(questions):
+        templates = PARAPHRASES.get(item.archetype, ())
+        fields = dict(item.meta)
+        title = fields.get("title")
+        fields["title_lower"] = title.lower() if isinstance(title, str) else ""
+        key = f"{item.archetype}:{index}"
+
+        variants = [item.question]
+        for template in templates:
+            try:
+                text = template.format(**fields)
+            except (KeyError, IndexError):
+                continue
+            if text not in variants:
+                variants.append(text)
+
+        rng.shuffle(variants[1:])
+        for text in variants[: max(1, per_question)]:
+            clone = Question(
+                question=text,
+                answer=item.answer,
+                reasoning=item.reasoning,
+                archetype=item.archetype,
+                gold=list(item.gold),
+                tiers=dict(item.tiers),
+                meta={**item.meta, "fact_key": key},
+            )
+            out.append(clone)
     return out
