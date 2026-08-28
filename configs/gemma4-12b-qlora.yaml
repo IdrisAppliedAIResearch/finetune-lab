@@ -20,6 +20,11 @@ run:
   name: gemma4-12b-qra
 
 model:
+  # Must be the INSTRUCTION-TUNED checkpoint. The base model
+  # (google/gemma-4-12B, and unsloth/gemma-4-12b which mirrors it) ships no chat
+  # template at all, and QRA training renders chat turns -- ftlab.model refuses
+  # to load a tokenizer without one rather than inventing a format the model was
+  # never trained on. Confirm with 'ftlab inspect-model -c this-config'.
   base: google/gemma-4-12B-it
   dtype: bfloat16
   load_in_4bit: true              # ~7 GB of weights; leaves room for activations
@@ -34,21 +39,31 @@ lora:
   alpha: 64
   dropout: 0.05
   target_modules: auto
-  # Text-only training: leave the perception towers alone.
+  # Text-only training: keep adapters off the perception projections.
+  #
+  # These names are VERIFIED against the checkpoint, not guessed. An earlier
+  # version listed vision_tower / audio_tower / multi_modal_projector, none of
+  # which exist in Gemma 4 -- so the exclusion matched nothing and did nothing,
+  # silently, because PEFT does not warn on an exclude pattern that hits zero
+  # modules. Re-check with 'ftlab inspect-model' after any base model change.
+  #
+  # Real layout: 328 linears inside model.language_model, and exactly three
+  # outside it, all listed below.
   exclude_modules:
-    - vision_tower
-    - audio_tower
-    - multi_modal_projector
-    - vision_model
-    - audio_model
+    - vision_embedder        # patch_dense
+    - embed_vision           # embedding_projection
+    - embed_audio            # embedding_projection
 
 data:
   train_path: data/processed/train.jsonl
   eval_path: data/processed/eval.jsonl
 
-  # Measured on the generated corpus: p99 is ~1.4K tokens and the longest item
-  # is ~1.6K, so 2048 keeps 100% of examples with no truncation. Re-check with
-  # 'ftlab check-data' if you regenerate at 'full' scale.
+  # VERIFIED with Gemma 4's own tokenizer (not a proxy): p50 383, p90 1130,
+  # p99 1332, max 1870. With a 48-token allowance for chat-template markers,
+  # 2048 keeps 100% of the corpus. Gemma 4 runs 3-6% shorter than the SmolLM2
+  # tokenizer this was originally estimated with, so the earlier figure was
+  # conservative in the safe direction. Re-check with 'ftlab check-data' if you
+  # regenerate at 'full' scale.
   max_seq_len: 2048
 
   reasoning_format: think_tags

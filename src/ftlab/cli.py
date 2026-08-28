@@ -106,6 +106,21 @@ def cmd_synth(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_inspect_model(args: argparse.Namespace) -> int:
+    """Inspect a checkpoint and validate a config's assumptions against it."""
+    from .modelinfo import check_against_config, inspect_model, render
+
+    cfg = _load_config(args) if args.config else None
+    target = args.model or (cfg.model.base if cfg else None)
+    if not target:
+        raise SystemExit("pass --model <dir> or -c <config>")
+
+    info = inspect_model(target)
+    checks = check_against_config(info, cfg) if cfg else None
+    print(render(info, checks))
+    return 0 if not checks or all(c.ok for c in checks) else 1
+
+
 def cmd_grade(args: argparse.Namespace) -> int:
     """Grade generated answers against the graph that produced the questions."""
     import json as _json
@@ -319,6 +334,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="fraction of opportunities held out of training entirely",
     )
     synth.set_defaults(func=cmd_synth)
+
+    inspect_p = sub.add_parser(
+        "inspect-model",
+        help="inspect a checkpoint's modules and check a config against it",
+    )
+    _add_config_args(inspect_p, required=False)
+    inspect_p.add_argument(
+        "--model", help="checkpoint directory (defaults to the config's model.base)"
+    )
+    inspect_p.set_defaults(func=cmd_inspect_model)
 
     grade = sub.add_parser(
         "grade", help="score generated answers against the graph's ground truth"

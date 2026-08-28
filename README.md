@@ -220,6 +220,7 @@ ratings and performance history to every name it mints.
 | `ftlab plan` | project steps, tokens, VRAM, time and cost before training |
 | `ftlab report` | re-render the metrics of a finished run |
 | `ftlab grade` | score generated answers against the graph's ground truth |
+| `ftlab inspect-model` | read a checkpoint's modules and check a config against it |
 | `ftlab show-config -c X` | print the fully resolved config after inheritance |
 | `ftlab check-data -c X` | validate a dataset and display the loss mask |
 | `ftlab train -c X` | train a LoRA adapter |
@@ -245,10 +246,47 @@ experiments is short enough to read.
 - **`gemma4-12b-qlora.yaml`** — QLoRA on `google/gemma-4-12B-it`, sized for 32 GB.
 - **`qra-smoke.yaml`** — the real demo corpus through a 135M model, 8 steps.
 
-Two things to know about the Gemma 4 preset:
+### Check the config against the checkpoint
 
-1. **The repo is gated.** Accept the license on the model page, then
-   `huggingface-cli login`, or the download 401s.
+```bash
+uv run ftlab inspect-model -c gemma4-12b-qlora.yaml
+```
+
+Reads the safetensors header and config — no weights loaded, so a 23GB
+checkpoint inspects in about a second — and validates the parts of a training
+config that depend on the model. It exists because of a bug it would have
+caught: the Gemma 4 preset shipped with
+
+```yaml
+exclude_modules: [vision_tower, audio_tower, multi_modal_projector, ...]
+```
+
+guessed from the config's sub-config keys. Gemma 4's real modules are
+`vision_embedder`, `embed_vision` and `embed_audio`. **Not one guess matched**,
+so the exclusion did nothing while the comment above it claimed the perception
+towers were protected. PEFT does not warn when an exclude pattern matches zero
+modules, so nothing anywhere would have told you.
+
+Verified against `google/gemma-4-12B` (11.96B params, 677 tensors):
+
+| | |
+|---|---|
+| linears inside `model.language_model` | 328 |
+| linears outside it | 3 — `vision_embedder.patch_dense`, `embed_vision.embedding_projection`, `embed_audio.embedding_projection` |
+| weights | 22.3 GB bf16 / **~6.1 GB nf4** |
+| attention | interleaved — layers 5, 11, 17 … 47 have doubled `q_proj`, quartered `k_proj`, and **no `v_proj`** |
+
+That last row is why `target_modules: auto` is the right default: hand-listing
+projections would silently miss eight layers' worth of shape variation.
+
+### Two things to know about the Gemma 4 preset:
+
+1. **The repo is gated, and it must be the `-it` variant.** Accept the license
+   on the model page, then `huggingface-cli login`. The base model
+   (`google/gemma-4-12B`, mirrored by `unsloth/gemma-4-12b`) ships **no chat
+   template at all** — `ftlab` refuses to load a tokenizer without one rather
+   than inventing a turn format the model never saw. Note also that GGUF
+   variants are inference-only: QLoRA needs safetensors.
 2. **It is multimodal.** `google/gemma-4-12B-it` is
    `Gemma4UnifiedForConditionalGeneration`, with vision and audio towers beside
    the text decoder. `AutoModelForCausalLM` loads it fine, but `all-linear` LoRA
@@ -265,7 +303,7 @@ With 32 GB, at 2K sequence length and batch size 1:
 | model | mode | weights | headroom |
 |---|---|---|---|
 | ~8B | LoRA bf16 | ~16 GB | comfortable |
-| ~12B | QLoRA nf4 | ~7 GB | large — room to raise `max_seq_len` |
+| ~12B | QLoRA nf4 | **6.1 GB** (measured) | large — room to raise `max_seq_len` |
 | ~27B | QLoRA nf4 | ~15 GB | workable at 2K |
 
 Activations, not weights, are what actually run you out of memory, and they
@@ -527,5 +565,5 @@ These are settled in the defaults; listed so the reasoning is not lost:
 uv run pytest
 ```
 
-117 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
+128 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
 that a masking failure is a real bug rather than a tokenizer artefact.
