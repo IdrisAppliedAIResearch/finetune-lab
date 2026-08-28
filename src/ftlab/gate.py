@@ -6,23 +6,51 @@ another epoch always *looks* like it might help. So the rule is written down as
 arithmetic over thresholds that can be argued with before the run starts, and
 the answer is the same whether or not anyone is watching.
 
-Two conditions, both required:
+Three conditions, all required:
 
-  1. *Still learning.* The best eval loss reached during the final epoch must
-     beat the best reached before it by at least ``min_rel_improvement``. This
-     is the "is another epoch buying anything" test.
+  1. *Still learning.* The best eval loss of the final epoch must beat the best
+     reached before it by at least ``min_rel_improvement``.
 
-  2. *Still at the floor.* The last measurement must sit within
-     ``overfit_tolerance`` of the best one seen. A curve can improve on average
-     across an epoch while already having turned up at the end; the average
-     says continue and the turn says stop, and the turn is right.
+  2. *Not memorising.* At the end of the run, eval must sit no further above
+     train than ``max_generalisation_gap``.
 
-Either condition failing means stop. The bias is deliberately toward stopping:
-the corpus repeats each fact 3x typical and 7x worst case, so epochs multiply on
-top of an already-high exposure count, and the failure mode of a closed-book
-model trained too long is a record-reciter that has memorised phrasing instead
-of relationships. Under-training shows up in the grades and can be fixed by
-running more; over-training is only fixable by throwing the run away.
+  3. *Still at the floor.* The last measurement must sit within
+     ``overfit_tolerance`` of the best one seen.
+
+Any one failing means stop. The bias is deliberately toward stopping: the corpus
+repeats each fact 3x typical and 7x worst case, so epochs multiply on top of an
+already-high exposure count, and the failure mode of a closed-book model trained
+too long is a record-reciter that has memorised phrasing instead of
+relationships. Under-training shows up in the grades and can be fixed by running
+more; over-training is only fixable by throwing the run away.
+
+Check 2 was added after the first real 2-epoch run, which showed the other two
+are both weak instruments under a schedule that anneals the learning rate to
+zero -- and weak in the *same* direction, toward continuing:
+
+* Check 1 compares an epoch's best against everything before it, so it is an
+  average over the epoch, dominated by its early part. On that run it read
+  +30.30% while the last two measurements differed by +0.20% -- below the gate's
+  own 0.5% bar. A decaying LR makes almost any epoch improve on average.
+
+* Check 3 barely binds. As the LR approaches zero the model stops moving, so the
+  final measurement is very nearly always also the best; on that run the two
+  were the same point and the check passed trivially.
+
+The tempting fix -- judge the terminal slope instead of the epoch average -- just
+inverts the bias, because flatness at the end is largely an artifact of the LR
+having decayed rather than of the model being saturated. The train/eval gap is
+the one quantity here the schedule cannot fake, since both numbers are read off
+the same model at the same step. On that run it went from ~5% at the end of
+epoch 1 to ~18% at the end of epoch 2.
+
+A caveat worth stating plainly: check 2 was chosen *after* seeing the data it
+now fires on, which is exactly what makes a pre-registered rule worth less. It
+is defensible on its own terms -- the gap is the failure mode this project cares
+about, and it is schedule-independent -- but a rule revised post hoc should not
+be the sole basis for the decision it was revised to change. Treat a split
+verdict as a prompt to look at the task metrics from 'ftlab grade', which
+measure the thing eval loss is only a proxy for.
 """
 
 from __future__ import annotations
@@ -37,12 +65,24 @@ from .config import GateConfig
 
 @dataclass(frozen=True)
 class EvalPoint:
-    """One eval measurement, with where it was read from."""
+    """One eval measurement, with the train loss logged nearest to it."""
 
     step: int
     epoch: float
     loss: float
     source: str = "trainer_state"
+    train_loss: float | None = None
+
+    @property
+    def gap(self) -> float | None:
+        """How far eval sits above train, relative to eval.
+
+        The only signal here a learning-rate schedule cannot fake: both numbers
+        come off the same model at the same step.
+        """
+        if not self.train_loss or not self.loss:
+            return None
+        return (self.loss - self.train_loss) / self.loss
 
 
 @dataclass
@@ -113,17 +153,26 @@ def read_curve(run_dir: str | Path) -> list[EvalPoint]:
     run_dir = Path(run_dir)
     points: list[EvalPoint] = []
 
+    train_log: list[tuple[int, float]] = []
     state_path = _latest_trainer_state(run_dir)
     if state_path is not None:
         state = json.loads(state_path.read_text(encoding="utf-8"))
-        for entry in state.get("log_history", []):
+        history = state.get("log_history", [])
+        train_log = [
+            (int(e.get("step", 0)), float(e["loss"]))
+            for e in history
+            if "loss" in e and "eval_loss" not in e
+        ]
+        for entry in history:
             if "eval_loss" not in entry:
                 continue
+            step = int(entry.get("step", 0))
             points.append(
                 EvalPoint(
-                    step=int(entry.get("step", 0)),
+                    step=step,
                     epoch=float(entry.get("epoch", 0.0)),
                     loss=float(entry["eval_loss"]),
+                    train_loss=_nearest_train_loss(train_log, step),
                 )
             )
 
@@ -140,10 +189,22 @@ def read_curve(run_dir: str | Path) -> list[EvalPoint]:
                         epoch=epoch,
                         loss=float(final["eval_loss"]),
                         source="trainer_metrics",
+                        # Deliberately NOT final["train_loss"]: the Trainer
+                        # reports that as the mean over the whole run, which at
+                        # the end of a descending curve is far above the value
+                        # the model is actually at. Pair with the nearest
+                        # logged step instead.
+                        train_loss=_nearest_train_loss(train_log, step),
                     )
                 )
 
     return sorted(points, key=lambda p: p.step)
+
+
+def _nearest_train_loss(train_log: list[tuple[int, float]], step: int) -> float | None:
+    if not train_log:
+        return None
+    return min(train_log, key=lambda row: abs(row[0] - step))[1]
 
 
 def _final_step(run_dir: Path, points: list[EvalPoint]) -> int:
@@ -230,6 +291,17 @@ def decide(
     ceiling = best.loss * (1.0 + gate.overfit_tolerance)
     at_floor = final.loss <= ceiling
 
+    gap = final.gap
+    generalising = gap is None or gap <= gate.max_generalisation_gap
+
+    if gap is None:
+        gap_detail = "no train loss logged alongside the final eval; check skipped"
+    else:
+        gap_detail = (
+            f"eval {final.loss:.4f} vs train {final.train_loss:.4f} = "
+            f"{gap:.1%} above (limit {gate.max_generalisation_gap:.1%})"
+        )
+
     checks = [
         Check(
             "still learning",
@@ -238,6 +310,7 @@ def decide(
             f"{best_prior_loss:.4f} = {improvement:+.2%} "
             f"(need >= {gate.min_rel_improvement:.2%})",
         ),
+        Check("not memorising", generalising, gap_detail),
         Check(
             "still at the floor",
             at_floor,
@@ -246,7 +319,28 @@ def decide(
         ),
     ]
 
-    if improving and at_floor:
+    # The terminal slope is not a check -- under a decaying LR it always trends
+    # to zero -- but it is the number that shows how much of check 1's verdict
+    # came from the start of the epoch rather than the end.
+    if len(curve) >= 2:
+        prev_point = curve[-2]
+        slope = (prev_point.loss - final.loss) / prev_point.loss if prev_point.loss else 0.0
+        checks.append(
+            Check(
+                "terminal slope (context, not a gate)",
+                True,
+                f"{prev_point.loss:.4f} -> {final.loss:.4f} = {slope:+.2%} "
+                f"between the last two measurements",
+            )
+        )
+
+    if improving and at_floor and not generalising:
+        reason = (
+            f"eval loss is still falling ({improvement:+.2%}), but eval now sits "
+            f"{gap:.1%} above train -- the model is fitting phrasing rather than "
+            f"content, and another epoch would deepen that"
+        )
+    elif improving and at_floor:
         reason = (
             f"eval loss still falling ({improvement:+.2%} over the final epoch) "
             f"and the curve has not turned up -- another epoch is earned"
@@ -268,7 +362,7 @@ def decide(
         )
 
     return GateDecision(
-        should_continue=improving and at_floor,
+        should_continue=improving and at_floor and generalising,
         reason=reason,
         checks=checks,
         curve=curve,
@@ -290,9 +384,11 @@ def render(decision: GateDecision) -> str:
         for point in decision.curve:
             marks = " <- best" if point is best else ""
             window = "final epoch" if point.epoch > boundary else "earlier"
+            gap = "" if point.gap is None else f"  gap {point.gap:>5.1%}"
+            train = "" if point.train_loss is None else f"  train {point.train_loss:.4f}"
             lines.append(
                 f"  step {point.step:>5}  epoch {point.epoch:>5.2f}  "
-                f"loss {point.loss:.4f}  {window}{marks}"
+                f"eval {point.loss:.4f}{train}{gap}  {window}{marks}"
             )
     else:
         lines.append("  (no eval measurements found)")

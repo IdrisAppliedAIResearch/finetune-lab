@@ -13,7 +13,13 @@ from ftlab.gate import EvalPoint, decide, read_curve, render, run_gate
 
 
 def curve(*pairs: tuple[int, float, float]) -> list[EvalPoint]:
-    return [EvalPoint(step=s, epoch=e, loss=loss) for s, e, loss in pairs]
+    """Points with train == eval, so the gap check never confounds a loss test."""
+    return [EvalPoint(step=s, epoch=e, loss=loss, train_loss=loss) for s, e, loss in pairs]
+
+
+def check(decision, name: str):
+    """By name, not by index -- indices shift whenever a check is added."""
+    return next(c for c in decision.checks if c.name == name)
 
 
 def write_run(
@@ -138,8 +144,8 @@ def test_stops_when_the_last_epoch_bought_almost_nothing():
         total_epochs=2.0,
     )
     assert not decision.should_continue
-    assert decision.checks[0].passed is False   # still learning
-    assert decision.checks[1].passed is True    # but still at the floor
+    assert check(decision, "still learning").passed is False
+    assert check(decision, "still at the floor").passed is True
 
 
 def test_stops_when_the_average_improved_but_the_last_point_turned_up():
@@ -156,8 +162,8 @@ def test_stops_when_the_average_improved_but_the_last_point_turned_up():
         total_epochs=2.0,
     )
     assert not decision.should_continue
-    assert decision.checks[0].passed is True    # still learning, on average
-    assert decision.checks[1].passed is False   # but off the floor
+    assert check(decision, "still learning").passed is True     # on average
+    assert check(decision, "still at the floor").passed is False  # but off the floor
     assert "off the" in decision.reason
 
 
@@ -223,7 +229,108 @@ def test_run_gate_writes_a_readable_record(tmp_path):
     saved = json.loads((run / "gate.json").read_text(encoding="utf-8"))
     assert saved["should_continue"] is True
     assert len(saved["curve"]) == 4
-    assert len(saved["checks"]) == 2
+    assert {c["name"] for c in saved["checks"]} >= {
+        "still learning", "not memorising", "still at the floor"
+    }
 
     text = render(decision)
     assert "CONTINUE" in text and "final epoch" in text and "earlier" in text
+
+
+# ---------------------------------------------------------------------------
+# the generalisation gap
+# ---------------------------------------------------------------------------
+
+
+def gapped(train_last: float) -> list[EvalPoint]:
+    """The real 2-epoch Gemma 4 12B run, replayed, with the last train loss free.
+
+    Measured, not invented: this is the curve gemma4-12b-qra actually produced,
+    which is what showed the loss-only checks to be weak instruments.
+    """
+    return [
+        EvalPoint(50, 0.32, 0.3303, train_loss=0.3165),
+        EvalPoint(100, 0.63, 0.2498, train_loss=0.2612),
+        EvalPoint(150, 0.95, 0.2190, train_loss=0.2045),
+        EvalPoint(200, 1.26, 0.1880, train_loss=0.1524),
+        EvalPoint(250, 1.58, 0.1615, train_loss=0.1364),
+        EvalPoint(300, 1.89, 0.1529, train_loss=0.1358),
+        EvalPoint(318, 2.00, 0.1526, train_loss=train_last),
+    ]
+
+
+def test_widening_gap_stops_a_curve_that_is_otherwise_still_falling():
+    """The real 2-epoch run: +30% epoch-over-epoch, last point the best, and
+    yet eval sitting 18% above train. The first two checks both pass and the
+    model is still memorising."""
+    decision = decide(gapped(0.1255), GATE, total_epochs=2.0)
+    # ~+30% epoch-over-epoch, against +0.20% between the last two points.
+    assert "+30.3" in check(decision, "still learning").detail
+    assert check(decision, "still learning").passed is True
+    assert check(decision, "still at the floor").passed is True
+    assert check(decision, "not memorising").passed is False
+    assert not decision.should_continue
+    assert "phrasing rather than content" in decision.reason
+
+
+def test_a_narrow_gap_leaves_the_decision_to_the_loss_checks():
+    decision = decide(gapped(0.1450), GATE, total_epochs=2.0)   # ~5% gap
+    assert check(decision, "not memorising").passed is True
+    assert decision.should_continue
+
+
+def test_gap_check_is_skipped_when_no_train_loss_was_logged():
+    """Older runs and hand-built curves must not be failed for missing data."""
+    points = [EvalPoint(s, e, loss) for s, e, loss in
+              ((50, 0.32, 0.33), (150, 0.95, 0.22), (318, 2.0, 0.15))]
+    decision = decide(points, GATE, total_epochs=2.0)
+    assert check(decision, "not memorising").passed is True
+    assert "skipped" in check(decision, "not memorising").detail
+    assert decision.should_continue
+
+
+def test_terminal_slope_is_reported_but_never_gates():
+    """It trends to zero under any annealed schedule, so it informs, not decides."""
+    decision = decide(gapped(0.1450), GATE, total_epochs=2.0)
+    slope = check(decision, "terminal slope (context, not a gate)")
+    assert slope.passed is True
+    assert "+0.20%" in slope.detail          # 0.1529 -> 0.1526 in the real run
+    assert decision.should_continue          # ...and it did not stop it
+
+
+def test_curve_reads_the_train_loss_beside_each_eval(tmp_path):
+    ckpt = tmp_path / "checkpoint-300"
+    ckpt.mkdir(parents=True)
+    (ckpt / "trainer_state.json").write_text(
+        json.dumps({"log_history": [
+            {"loss": 0.30, "step": 45, "epoch": 0.28},
+            {"loss": 0.20, "step": 150, "epoch": 0.94},
+            {"eval_loss": 0.22, "step": 150, "epoch": 0.94},
+        ]}),
+        encoding="utf-8",
+    )
+    point = read_curve(tmp_path)[0]
+    assert point.train_loss == 0.20
+    assert abs(point.gap - (0.22 - 0.20) / 0.22) < 1e-9
+
+
+def test_final_point_does_not_take_the_trainers_mean_train_loss(tmp_path):
+    """trainer_metrics['train_loss'] is the mean over the whole run.
+
+    On a descending curve that sits far above where the model actually ended --
+    using it would report a *negative* gap and wave through any amount of
+    memorisation. The nearest logged step is the right pairing.
+    """
+    run = write_run(
+        tmp_path,
+        [(300, 1.89, 0.1529)],
+        final={"epoch": 2.0, "eval_loss": 0.1526, "train_loss": 0.9},
+    )
+    ckpt = run / "checkpoint-300" / "trainer_state.json"
+    state = json.loads(ckpt.read_text(encoding="utf-8"))
+    state["log_history"].append({"loss": 0.1255, "step": 315, "epoch": 1.98})
+    ckpt.write_text(json.dumps(state), encoding="utf-8")
+
+    final = read_curve(run)[-1]
+    assert final.train_loss == 0.1255          # not 0.9
+    assert final.gap > 0.15

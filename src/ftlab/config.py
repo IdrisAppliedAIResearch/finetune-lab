@@ -130,7 +130,25 @@ class GateConfig(BaseModel):
     # ...and the final measurement must still be sitting at the floor. A curve
     # that improved on average but has already turned up is done, whatever the
     # epoch-over-epoch delta says.
+    #
+    # Note this check binds rarely under a schedule that anneals to zero: the
+    # model stops moving at the end, so the last point is usually also the best.
+    # It catches the blatant case and little else, which is why the gap check
+    # below exists.
     overfit_tolerance: float = 0.002
+
+    # How far eval may sit above train at the end, relative to eval, before the
+    # model counts as fitting phrasing rather than content.
+    #
+    # This is the one check that is not contaminated by the learning-rate
+    # schedule -- both losses are read off the same model at the same moment, so
+    # unlike the epoch delta and the terminal slope it is not an artifact of a
+    # decaying LR. For a closed-book library whose entire job is answering
+    # *unseen* questions, a model materially better on seen phrasings than on
+    # held-out ones is failing at the thing it is for. Some gap is expected,
+    # since the corpus repeats each fact 3-7x by design; 10% is where that stops
+    # looking like repetition and starts looking like memorisation.
+    max_generalisation_gap: float = 0.10
 
     # The extra epoch is a warm restart with its own cosine decay, not a
     # continuation of the finished one, so it gets its own (lower) peak.
