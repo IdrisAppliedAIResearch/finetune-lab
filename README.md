@@ -260,6 +260,7 @@ ratings and performance history to every name it mints.
 | `ftlab check-data -c X` | validate a dataset and display the loss mask |
 | `ftlab train -c X` | train a LoRA adapter; `--resume-adapter` continues an existing one |
 | `ftlab gate -c X` | decide whether a finished run has earned another epoch |
+| `ftlab retrieve -q "..."` | search the library (BM25 + exact names) |
 | `ftlab infer -c X -q "..."` | generate; `--base-only` for a before/after comparison |
 | `ftlab merge -c X` | merge the adapter into base weights |
 | `ftlab export -c X` | convert to GGUF and write an ollama Modelfile |

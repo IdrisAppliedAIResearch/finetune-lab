@@ -240,6 +240,31 @@ def cmd_train(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_retrieve(args: argparse.Namespace) -> int:
+    """Search the library the way the training data will, and show the ranking.
+
+    Worth eyeballing before generating a corpus against it: everything the model
+    is taught to reason over comes through here, so a retrieval layer that ranks
+    badly bakes that into the data.
+    """
+    from .retrieve import load_retriever
+
+    retriever = load_retriever(args.data or "data/processed", alpha=args.alpha)
+    print(f"[ftlab] {len(retriever.documents)} documents, alpha={args.alpha}")
+
+    if args.context:
+        print()
+        print(retriever.context(args.query, k=args.k, kinds=args.kind))
+        return 0
+
+    for rank, hit in enumerate(retriever.search(args.query, k=args.k, kinds=args.kind), 1):
+        print(
+            f"{rank:>3}. {hit.score:.3f}  bm25={hit.bm25:6.2f} exact={hit.exact:.0f}  "
+            f"[{hit.document.kind}] {hit.document.title}"
+        )
+    return 0
+
+
 def cmd_gate(args: argparse.Namespace) -> int:
     """Decide, by arithmetic rather than by eye, whether to train another epoch.
 
@@ -450,6 +475,28 @@ def build_parser() -> argparse.ArgumentParser:
         "(the gate's extra epoch; give it a lower learning rate)",
     )
     train.set_defaults(func=cmd_train)
+
+    retrieve = sub.add_parser(
+        "retrieve", help="search the past performance library (BM25 + exact names)"
+    )
+    retrieve.add_argument("--query", "-q", required=True, help="the question to search with")
+    retrieve.add_argument("--data", help="corpus directory (default data/processed)")
+    retrieve.add_argument("-k", type=int, default=5, help="how many records to return")
+    retrieve.add_argument(
+        "--alpha",
+        type=float,
+        default=0.5,
+        help="BM25 share of the blend: 1.0 pure BM25, 0.0 exact names only, "
+        "0.5 the even split (measured best at rank 1 on this corpus)",
+    )
+    retrieve.add_argument(
+        "--kind", action="append", choices=["contract", "partner", "person", "opportunity"],
+        help="restrict to one record type; repeatable",
+    )
+    retrieve.add_argument(
+        "--context", action="store_true", help="print the retrieved records in full"
+    )
+    retrieve.set_defaults(func=cmd_retrieve)
 
     gate = sub.add_parser(
         "gate", help="decide whether a finished run has earned another epoch"
