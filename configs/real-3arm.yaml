@@ -19,11 +19,11 @@ data:
   train_path: data/real_corpus/train.jsonl
   eval_path: data/real_corpus/eval.jsonl
 
-  # MEASURED on this corpus with Gemma 4's own tokenizer: mean 620, p95 1519,
-  # max 2014. Nothing truncates at 2048, and staying here rather than at the
-  # 4096 the synthetic corpus needed halves both the activation memory and the
-  # step time -- the calibrated 4096 run peaked at 27.6 GB of 31.8.
-  max_seq_len: 2048
+  # MEASURED with Gemma 4's own tokenizer after the context fix: mean 1106,
+  # max 2395. The jump from the earlier 2048 is the cost of showing a record
+  # for every candidate on the slate -- at 8 records for 12 candidates, four
+  # were being ranked with nothing to rank them on. 3072 truncates nothing.
+  max_seq_len: 3072
 
   # Open-book when records are supplied, closed-book when they are not. The
   # prompt says "if records are supplied" rather than "answer from the records"

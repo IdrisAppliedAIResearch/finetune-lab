@@ -35,8 +35,10 @@ from .questions import Question, describe, expand_paraphrases, generate, generat
 # without starving the open-book behaviour that arm A depends on.
 CONTEXT_DROPOUT = 0.4
 
-# Records shown when context is supplied.
-CONTEXT_K = 8
+# Records shown when context is supplied. Large enough to cover a full
+# candidate slate: showing 8 records for 12 candidates leaves four that the
+# model is asked to rank and given nothing to rank them on.
+CONTEXT_K = 13
 
 
 def company_record(graph: TeamingGraph, name: str) -> str:
@@ -52,42 +54,83 @@ def company_record(graph: TeamingGraph, name: str) -> str:
         f"Agencies: {agencies}",
         f"NAICS: {naics}",
         f"Subcontracts taken: {len(company.as_sub)}; awards where prime: {len(company.as_prime)}",
-        f"Teamed with ({len(partners)}): {', '.join(partners[:8])}"
+        f"Teamed with ({len(partners)}): {', '.join(partners[:6])}"
         if partners
         else "Teamed with: none on record",
     ]
     work = company.descriptions(1)
     if work:
-        lines.append(f"Representative scope: {work[0][:240]}")
+        lines.append(f"Representative scope: {work[0][:150]}")
     return "\n".join(lines)
 
 
-def context_for(graph: TeamingGraph, question: Question, k: int = CONTEXT_K) -> str:
-    """The library records a question needs, as a numbered block.
+def build_index(graph: TeamingGraph) -> Any:
+    """BM25 over company records, so context can be chosen without the answer."""
+    from ..retrieve import BM25Index, Document
 
-    Assembled from the entities the question is about rather than by lexical
-    search: these questions name their subjects, so retrieval would be a
-    round-trip to the same answer. The retrieval layer in ftlab.retrieve is what
-    arm C uses at serve time; this is the training-side equivalent.
+    docs = [
+        Document(id=name, kind="partner", title=name, text=company_record(graph, name))
+        for name in sorted(graph.companies)
+    ]
+    return docs, BM25Index(docs)
+
+
+def context_for(
+    graph: TeamingGraph,
+    question: Question,
+    index: tuple[Any, Any],
+    k: int = CONTEXT_K,
+) -> str:
+    """The library records a prompt carries -- chosen without consulting the key.
+
+    The first version of this built context from the question's own gold list,
+    which meant retrieval retrieved the answer. Measured on the blind set: for
+    "which companies are new to NIH", eight of the eight records supplied were
+    gold, and the untuned base model scored a perfect 1.000 simply by reading
+    the record names back. That is not a benchmark, it is an echo.
+
+    So context comes from three answer-independent sources, in order:
+
+    * the entities the question names outright -- a question about a prime is
+      entitled to that prime's record
+    * the slate, when the question presents one, since those names are in the
+      question text already
+    * BM25 over the remaining company records, which is what a retrieval system
+      would actually return and cannot see the key
+
+    Gold is never injected. When it appears it is because retrieval found it.
     """
+    docs, bm25 = index
     names: list[str] = []
     meta = question.meta
+
     for key in ("prime", "target", "company", "a", "b"):
         value = meta.get(key)
-        if isinstance(value, str) and value not in names:
+        if isinstance(value, str) and value in graph.companies and value not in names:
             names.append(value)
-    for candidate in question.tiers:
+
+    # Sorted, not in slate order. The slate dict is built positives-first, so
+    # iterating it put every correct answer in the opening context slots -- the
+    # same positional leak already fixed in the question text, reappearing in
+    # the records. Alphabetical is arbitrary with respect to the key.
+    for candidate in sorted(question.tiers):
         if candidate not in names:
             names.append(candidate)
-    for name in question.gold:
-        if name not in names:
-            names.append(name)
 
-    blocks = [
+    if len(names) < k:
+        scored = bm25.scores(question.question)
+        ranked = sorted(scored.items(), key=lambda kv: (-kv[1], docs[kv[0]].id))
+        for position, _score in ranked:
+            name = docs[position].id
+            if name not in names:
+                names.append(name)
+            if len(names) >= k:
+                break
+
+    return "\n\n".join(
         f"[{i}] {company_record(graph, name)}"
         for i, name in enumerate(names[:k], start=1)
-    ]
-    return "\n\n".join(blocks)
+    )
 
 
 def build(
@@ -101,6 +144,7 @@ def build(
     slice_ = load_slice(data_dir)
     graph = build_graph(slice_.prime_awards, slice_.subawards)
 
+    search_index = build_index(graph)
     rng = random.Random(seed)
     base = generate(graph)
     questions = expand_paraphrases(base, per_question=paraphrases, seed=seed)
@@ -124,11 +168,13 @@ def build(
 
     def render(items: list[Question], *, drop: bool) -> list[dict[str, Any]]:
         rows = []
-        for index, item in enumerate(items):
+        for position, item in enumerate(items):
             record = item.to_record()
             # Deterministic by position, so a rerun produces the same corpus.
-            withhold = drop and (index % 100) < int(dropout * 100)
-            record["context"] = "" if withhold else context_for(graph, item)
+            withhold = drop and (position % 100) < int(dropout * 100)
+            record["context"] = (
+                "" if withhold else context_for(graph, item, search_index)
+            )
             record["meta"]["closed_book"] = withhold
             rows.append(record)
         return rows

@@ -695,28 +695,47 @@ def generate_blind(graph: TeamingGraph, seed: int = 1729, count: int = 20) -> li
             by_agency[row["agency"]].add(row["sub"])
 
     for agency, newcomers in sorted(by_agency.items(), key=lambda kv: -len(kv[1])):
-        if len(newcomers) < 3:
+        established = sorted(seen_at_agency[agency])
+        if len(newcomers) < 3 or len(established) < 4:
             continue
         short = _agency_short(agency)
-        names = sorted(newcomers)
-        rng.shuffle(names)
+
+        # A slate, for the same reason blind_next_team needs one. Asked openly
+        # -- "which companies are new to NIH?" -- the only way to supply useful
+        # context is to supply the newcomers, and then the context *is* the
+        # answer: measured, eight of eight records offered were gold and the
+        # untuned base model scored 1.000 by reading the names back. Mixing
+        # newcomers with established incumbents makes it a judgement instead.
+        fresh = sorted(newcomers)
+        rng.shuffle(fresh)
+        old_hands = list(established)
+        rng.shuffle(old_hands)
+        positives = sorted(fresh[:4])
+        slate = {n: 4 for n in positives}
+        for name in old_hands:
+            if len(slate) >= CANDIDATES:
+                break
+            slate.setdefault(name, 0)
+        if len(slate) < 8 or len(positives) < 3:
+            continue
+
+        shown = sorted(slate)
+        rng.shuffle(shown)
         out.append(
             Question(
                 question=(
-                    f"Which companies have started subcontracting at {short} "
-                    f"recently, having no prior reported work there?"
+                    f"Which of these companies are new to {short} -- subcontracting "
+                    f"there now with no prior reported work?\n" + _fmt(shown)
                 ),
-                answer=(
-                    f"{len(names)} new entrants, including:\n"
-                    f"{_fmt(sorted(names)[:TOP_K])}"
-                ),
+                answer=f"New to {short}: {', '.join(positives)}.",
                 reasoning=(
-                    f"A new entrant is a company with {short} subcontracts in the "
-                    f"current period and none before it. These are the names a "
-                    f"capture team would not already know."
+                    f"A new entrant has {short} subcontracts now and none before. "
+                    f"The rest of this list have {short} history already, which is "
+                    f"what makes them the wrong answer rather than obviously so."
                 ),
                 archetype="blind_new_entrant",
-                gold=sorted(names),
+                gold=positives,
+                tiers=slate,
                 meta={"agency": agency, "blind": True},
             )
         )
