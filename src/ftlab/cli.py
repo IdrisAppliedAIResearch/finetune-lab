@@ -251,34 +251,31 @@ def cmd_merge(args: argparse.Namespace) -> int:
 
 
 def cmd_export(args: argparse.Namespace) -> int:
-    from .export_gguf import (
-        convert_to_gguf,
-        quantize,
-        register_with_ollama,
-        write_modelfile,
-    )
+    from .export_gguf import export
 
     cfg = _load_config(args)
     merged = Path(args.merged or (cfg.run_dir / "merged"))
     if not merged.exists():
         raise FileNotFoundError(f"merged model not found at {merged} -- run 'ftlab merge' first")
 
-    gguf_dir = Path(args.out_dir or (cfg.run_dir / "gguf"))
-    f16_path = gguf_dir / f"{cfg.run.name}-f16.gguf"
-    convert_to_gguf(merged, f16_path, args.llama_cpp, outtype="f16")
+    result = export(
+        merged_dir=merged,
+        out_dir=Path(args.out_dir or (cfg.run_dir / "gguf")),
+        name=cfg.run.name,
+        quant=args.quant,
+        llama_cpp_dir=args.llama_cpp,
+        system_prompt=cfg.data.system_prompt,
+        ollama_name=args.ollama_name,
+    )
 
-    final = f16_path
-    if args.quant != "f16":
-        final = gguf_dir / f"{cfg.run.name}-{args.quant}.gguf"
-        quantize(f16_path, final, args.quant, args.llama_cpp)
-
-    modelfile = gguf_dir / "Modelfile"
-    write_modelfile(final, modelfile, system_prompt=cfg.data.system_prompt)
-
-    if args.ollama_name:
-        register_with_ollama(modelfile, args.ollama_name)
-    else:
-        print(f"\nTo register with ollama:\n    ollama create <name> -f {modelfile}")
+    print()
+    print(result.summary())
+    if not result.registered_as:
+        print(
+            f"\nTo register with ollama:\n"
+            f"    ollama create <name> -f {result.modelfile}"
+            + (f" -q {args.quant}" if result.quant_route == "none" and args.quant != "f16" else "")
+        )
     return 0
 
 

@@ -285,16 +285,49 @@ merging into dequantized weights would bake quantization error in, and then GGUF
 quantizes again. One lossy step is enough.
 
 ```bash
-git clone https://github.com/ggml-org/llama.cpp %USERPROFILE%\llama.cpp
+git clone --depth 1 https://github.com/ggml-org/llama.cpp %USERPROFILE%\llama.cpp
+uv sync --extra export
+
 uv run ftlab merge  -c gemma4-12b-qlora.yaml
 uv run ftlab export -c gemma4-12b-qlora.yaml --quant q4_k_m --ollama-name gemma4-qra
 ```
 
-`export` shells out to llama.cpp rather than vendoring a converter, which would
+Conversion shells out to llama.cpp rather than vendoring a converter, which would
 go stale within weeks of a new architecture landing. Point it with
-`--llama-cpp <path>` or `LLAMA_CPP_DIR`. Quantizing needs `llama-quantize`
-built (`cmake -B build && cmake --build build --config Release`); without it you
-can still serve the f16 GGUF.
+`--llama-cpp <path>` or `LLAMA_CPP_DIR`.
+
+### Quantization: three routes, in order
+
+Building `llama-quantize` needs a C++ toolchain, which a Windows box generally
+does not have. So the exporter takes whichever route is available:
+
+1. **ollama** — `ollama create -q q4_K_M` quantizes on ingest, needs no
+   compiler, and is already installed if you serve models locally. Used
+   automatically when `--ollama-name` is given and no binary is found.
+2. **`llama-quantize`** — for a portable `.gguf` rather than a model inside
+   ollama's store. Needs `cmake -B build && cmake --build build --config Release`.
+3. **Neither** — ship the f16. Twice the size, serves fine.
+
+The rule throughout: never fail after producing something usable. An earlier
+version raised when `llama-quantize` was missing, which killed the run *after* a
+valid f16 GGUF was written and *before* the Modelfile — leaving anyone without a
+compiler holding a converted model and a stack trace.
+
+### Verified end to end
+
+On this machine, with no C++ toolchain installed:
+
+| step | result |
+|---|---|
+| merge | 135M adapter → 269 MB safetensors + tokenizer + chat template |
+| convert | f16 GGUF, **0.25 GB**, chat template carried through |
+| quantize | ollama on ingest → **105 MB** q4_K_M |
+| register | `ollama create -q q4_K_M`, SYSTEM prompt preserved |
+| run | `ollama run` loads and generates in the trained answer format |
+
+The converter runs against this project's transformers 5.x / numpy 2.x despite
+its requirements file pinning 4.x / 1.x — only `gguf` is genuinely needed, hence
+the narrow `export` extra.
 
 ---
 
@@ -494,5 +527,5 @@ These are settled in the defaults; listed so the reasoning is not lost:
 uv run pytest
 ```
 
-106 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
+117 tests, no GPU or network needed — a char-level fake tokenizer stands in, so
 that a masking failure is a real bug rather than a tokenizer artefact.
