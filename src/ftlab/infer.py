@@ -33,6 +33,10 @@ def load_for_inference(cfg: Config, adapter_dir: str | Path | None) -> tuple[Any
     return model, tokenizer
 
 
+# Records retrieved for a live question. Matches the corpus's own budget
+# closely enough that a query and a training example look alike to the model.
+RETRIEVE_K = 12
+
 @torch.no_grad()
 def generate(
     model: Any,
@@ -41,8 +45,9 @@ def generate(
     cfg: Config,
     max_new_tokens: int = 512,
     temperature: float = 0.7,
+    context: str = "",
 ) -> str:
-    example = QRAExample(question=question, answer="")
+    example = QRAExample(question=question, answer="", context=context)
     prompt = render_prompt(example, cfg.data, tokenizer)
     inputs = tokenizer(prompt, return_tensors="pt", add_special_tokens=False).to(model.device)
 
@@ -77,10 +82,17 @@ def run(
     return results
 
 
-def questions_from(path: str | Path, limit: int | None = None) -> list[str]:
-    """Pull the question field out of a QRA file, for eyeballing held-out data."""
-    questions = [example.question for example in iter_jsonl(path)]
-    return questions[:limit] if limit else questions
+def questions_from(
+    path: str | Path, limit: int | None = None
+) -> list[tuple[str, str]]:
+    """Pull questions and their context out of a QRA file.
+
+    The context comes with them deliberately. Re-retrieving would answer a
+    different question than the corpus posed, and any difference between the two
+    would show up as a model error.
+    """
+    pairs = [(example.question, example.context) for example in iter_jsonl(path)]
+    return pairs[:limit] if limit else pairs
 
 
 def save(results: list[dict[str, str]], path: str | Path) -> None:
@@ -96,7 +108,7 @@ def save(results: list[dict[str, str]], path: str | Path) -> None:
 def generate_many(
     model: Any,
     tokenizer: Any,
-    questions: list[str],
+    questions: list[str] | list[tuple[str, str]],
     cfg: Config,
     max_new_tokens: int = 1280,
     temperature: float = 0.0,
@@ -104,6 +116,12 @@ def generate_many(
     progress: bool = True,
 ) -> list[str]:
     """Generate for many questions at once.
+
+    Each item is either a question or a (question, context) pair. Context is
+    not optional in practice: the prompt the model was trained on carries the
+    retrieved library records, and generating without them presents a format the
+    model has never seen and asks it to answer from weights that were never
+    taught to hold the facts.
 
     Left padding is not a preference here, it is a correctness requirement. With
     right padding, a short prompt is followed by pad tokens and *then* the
@@ -122,8 +140,16 @@ def generate_many(
                 print(f"[ftlab] generating {start + len(chunk)}/{len(questions)}")
 
             prompts = [
-                render_prompt(QRAExample(question=q, answer=""), cfg.data, tokenizer)
-                for q in chunk
+                render_prompt(
+                    QRAExample(
+                        question=item[0] if isinstance(item, tuple) else item,
+                        answer="",
+                        context=item[1] if isinstance(item, tuple) else "",
+                    ),
+                    cfg.data,
+                    tokenizer,
+                )
+                for item in chunk
             ]
             encoded = tokenizer(
                 prompts, return_tensors="pt", padding=True, add_special_tokens=False

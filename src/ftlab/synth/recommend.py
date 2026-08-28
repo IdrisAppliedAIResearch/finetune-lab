@@ -211,7 +211,7 @@ def build_teaming(
         for template in rng.sample(TEAMING_TEMPLATES, min(mult, len(TEAMING_TEMPLATES))):
             items.append(
                 QRAItem(
-                    question=f"{opportunity.brief()}\n\n{template}",
+                    question=_ask(opportunity, template, plan),
                     reasoning=reasoning,
                     answer=answer,
                     archetype="teaming_recommendation",
@@ -295,7 +295,7 @@ def build_prime_candidates(
         for template in rng.sample(PRIME_TEMPLATES, min(mult, len(PRIME_TEMPLATES))):
             items.append(
                 QRAItem(
-                    question=f"{opportunity.brief()}\n\n{template}",
+                    question=_ask(opportunity, template, plan),
                     reasoning=reasoning,
                     answer=answer,
                     archetype="prime_candidates",
@@ -392,9 +392,7 @@ def build_sub_candidates(
         for template in rng.sample(templates, min(mult, len(templates))):
             items.append(
                 QRAItem(
-                    question=(
-                        f"{opportunity.brief()}\n\n{template.format(cap=spec.name)}"
-                    ),
+                    question=_ask(opportunity, template.format(cap=spec.name), plan),
                     reasoning=reasoning,
                     answer=answer,
                     archetype="sub_candidates",
@@ -499,7 +497,7 @@ def build_citations(
         for template in rng.sample(CITATION_TEMPLATES, min(mult, len(CITATION_TEMPLATES))):
             items.append(
                 QRAItem(
-                    question=f"{opportunity.brief()}\n\n{template}",
+                    question=_ask(opportunity, template, plan),
                     reasoning=reasoning,
                     answer=answer,
                     archetype="pp_citation",
@@ -604,7 +602,7 @@ def build_gap_analysis(
         for template in rng.sample(templates, min(mult, len(templates))):
             items.append(
                 QRAItem(
-                    question=f"{opportunity.brief()}\n\n{template}",
+                    question=_ask(opportunity, template, plan),
                     reasoning=reasoning,
                     answer=answer,
                     archetype="gap_analysis",
@@ -733,7 +731,7 @@ def build_bid_decision(
         for template in rng.sample(templates, min(mult, len(templates))):
             items.append(
                 QRAItem(
-                    question=f"{opportunity.brief()}\n\n{template}",
+                    question=_ask(opportunity, template, plan),
                     reasoning=reasoning,
                     answer=answer,
                     archetype="bid_decision",

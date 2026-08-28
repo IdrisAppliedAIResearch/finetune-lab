@@ -709,10 +709,13 @@ def generate_answers(
     from .infer import generate_many, load_for_inference
 
     model, tokenizer = load_for_inference(cfg, adapter)
+    # The item's own context, not a fresh retrieval: grading has to present the
+    # prompt the corpus built, or it measures the retriever's drift rather than
+    # the model's answer.
     return generate_many(
         model,
         tokenizer,
-        [item["question"] for item in items],
+        [(item["question"], item.get("context", "")) for item in items],
         cfg,
         max_new_tokens=max_new_tokens,
         temperature=temperature,

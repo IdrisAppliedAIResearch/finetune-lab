@@ -312,6 +312,8 @@ def cmd_infer(args: argparse.Namespace) -> int:
         questions,
         max_new_tokens=args.max_new_tokens,
         temperature=args.temperature,
+        # A bare --question has no context of its own, so retrieve for it.
+        data_dir=args.data or "data/processed" if args.question else None,
     )
     if args.out:
         save(results, args.out)
@@ -536,6 +538,9 @@ def build_parser() -> argparse.ArgumentParser:
     _add_config_args(infer)
     infer.add_argument("--question", "-q", help="a single question to answer")
     infer.add_argument("--from-file", help="QRA jsonl to pull questions from")
+    infer.add_argument(
+        "--data", help="corpus directory to retrieve from (default data/processed)"
+    )
     infer.add_argument("--limit", type=int, help="max questions to run")
     infer.add_argument("--adapter", help="adapter dir (defaults to <run_dir>/adapter)")
     infer.add_argument(
