@@ -30,9 +30,19 @@ Three things about that calibration, the first two learned the hard way:
   before one update, so measuring one micro-batch and scaling costs nothing in
   accuracy.
 
-Because the measurements come from worst-case batches, the projection is an
-upper bound on step time and therefore errs long. That is the right direction to
-err in.
+Memory and time are measured on *different* samples, in two phases, because they
+are different questions. Peak VRAM has to be an upper bound or it is not a bound
+at all, so it is measured on the longest examples in the corpus. Wall time is a
+sum over every example the run will touch, so it is measured on a sample drawn at
+even quantiles of the length distribution. Measuring both on the longest examples
+answered the memory question correctly and overstated the time one by roughly the
+ratio of the longest example to the mean: on this corpus the worst-case step time
+was 33.4s against a real mixed-length 14.7s, a 2.3x overstatement, projecting
+4h41m for a run that took well under half that. The worst-case step time is still
+reported, as the stated bound it always was.
+
+The worst-case phase runs first, deliberately: it absorbs the one-time CUDA
+warm-up that would otherwise land in the representative measurement.
 """
 
 from __future__ import annotations
@@ -113,6 +123,13 @@ class Calibration:
     mean_gpu_watts: float
     # Accumulation the real run will use; calibration itself runs at 1.
     grad_accum: int = 1
+
+    # Time on the longest examples in the corpus, kept as a stated upper bound.
+    # 'seconds' above is the representative measurement the projection uses.
+    worst_seconds: float = 0.0
+    # Mean padded length of each sample, so the report can show why they differ.
+    mean_len_typical: int = 0
+    mean_len_worst: int = 0
     # Measured separately: an evaluation pass is forward-only, so it runs several
     # times faster than a training step and cannot be projected from one.
     eval_seconds: float = 0.0
@@ -129,6 +146,14 @@ class Calibration:
     @property
     def seconds_per_micro_batch(self) -> float:
         return self.seconds / self.steps if self.steps else 0.0
+
+    @property
+    def worst_seconds_per_micro_batch(self) -> float:
+        return self.worst_seconds / self.steps if self.steps else 0.0
+
+    @property
+    def worst_seconds_per_step(self) -> float:
+        return self.worst_seconds_per_micro_batch * self.grad_accum
 
     @property
     def seconds_per_step(self) -> float:
@@ -244,12 +269,21 @@ class PlanReport:
         blocks += [
             "",
             render_section(
-                f"Calibration ({c.steps} micro-batches, worst-case lengths)",
+                f"Calibration ({c.steps} micro-batches per phase)",
                 [
-                    ("sec / micro-batch", round(c.seconds_per_micro_batch, 2)),
+                    (
+                        "sec / micro-batch",
+                        f"{c.seconds_per_micro_batch:.2f}  "
+                        f"(typical batch, mean {c.mean_len_typical} tok)",
+                    ),
                     (
                         "sec / step",
                         f"{c.seconds_per_step:.2f}  ({c.grad_accum} micro-batches)",
+                    ),
+                    (
+                        "worst-case step",
+                        f"{c.worst_seconds_per_step:.2f}  "
+                        f"(longest {c.mean_len_worst} tok; the memory phase)",
                     ),
                     ("peak allocated", f"{c.peak_allocated_gb:.2f} GB  (the requirement)"),
                     (
@@ -447,6 +481,25 @@ def token_plan(cfg: Config) -> tuple[TokenPlan, list[dict[str, list[int]]]]:
 # ---------------------------------------------------------------------------
 
 
+def representative_sample(
+    ordered_desc: list[dict[str, list[int]]], count: int
+) -> list[dict[str, list[int]]]:
+    """A length-representative subset, drawn at even quantiles of the corpus.
+
+    Timing on the longest examples answers the memory question and the wrong
+    time question. Peak VRAM has to be an upper bound, because a memory estimate
+    that is only sometimes right is worse than none -- but wall time is a sum
+    over every example the run will actually touch, so it needs the corpus's own
+    length distribution, not its tail. Sampling at even quantiles of the
+    length-sorted list reproduces that distribution in however few batches the
+    calibration can afford.
+    """
+    total = len(ordered_desc)
+    if total <= count:
+        return list(ordered_desc)
+    return [ordered_desc[min(total - 1, int((i + 0.5) * total / count))] for i in range(count)]
+
+
 def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) -> Calibration:
     """Run a few real optimizer steps and measure what the machine does."""
     from datasets import Dataset
@@ -458,12 +511,15 @@ def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) 
 
     set_seed(cfg.run.seed)
 
-    # Worst-case batches: the longest examples in the corpus, so peak VRAM is an
-    # upper bound rather than a lucky draw.
+    # Two samples, because memory and time are different questions. Peak VRAM
+    # needs the worst case or it is not a bound; wall time needs the typical
+    # case or it is not an estimate. Measuring both on the longest examples
+    # answered the first correctly and overstated the second by the ratio of
+    # the longest example to the mean one.
     ordered = sorted(encoded, key=lambda e: -len(e["input_ids"]))
-    needed = steps * cfg.train.per_device_batch_size
-    sample = ordered[: max(needed, cfg.train.per_device_batch_size)]
-    dataset = Dataset.from_list(sample)
+    needed = max(steps * cfg.train.per_device_batch_size, cfg.train.per_device_batch_size)
+    worst_sample = ordered[:needed]
+    typical_sample = representative_sample(ordered, needed)
 
     tokenizer = model_mod.load_tokenizer(cfg.model)
     model = model_mod.load_base_model(cfg.model)
@@ -482,35 +538,43 @@ def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) 
         calib_cfg.run.output_dir = str(tmp)
 
         args = build_training_args(
-            calib_cfg, compute_schedule(calib_cfg, len(sample)), has_eval=False
+            calib_cfg, compute_schedule(calib_cfg, needed), has_eval=False
         )
         args.output_dir = str(tmp)
         args.save_strategy = "no"
 
         collator = PaddedCollator(pad_token_id=tokenizer.pad_token_id)
-        trainer = Trainer(
-            model=model,
-            args=args,
-            train_dataset=dataset,
-            data_collator=collator,
-            processing_class=tokenizer,
-        )
+
+        def run(net: Any, sample: list[dict[str, list[int]]]) -> tuple[float, int, Any]:
+            trainer = Trainer(
+                model=net,
+                args=args,
+                train_dataset=Dataset.from_list(sample),
+                data_collator=collator,
+                processing_class=tokenizer,
+            )
+            before = collator.padded_tokens
+            started = time.time()
+            trainer.train()
+            return time.time() - started, collator.padded_tokens - before, trainer
 
         sampler = GpuSampler(2.0)
         reset_peak_memory()
         sampler.start()
-        started = time.time()
-        trainer.train()
-        elapsed = time.time() - started
-        # Snapshot now: the evaluation pass below runs through the same collator,
-        # and reading the counter afterwards would fold eval tokens into the
-        # training throughput and overstate it.
-        train_tokens = collator.padded_tokens
+
+        # Worst case first, on purpose: it establishes the memory bound, and it
+        # absorbs the one-time CUDA warm-up -- kernel autotuning, allocator
+        # growth -- that would otherwise land in the measurement the projection
+        # is built from.
+        worst_seconds, _, _ = run(model, worst_sample)
+        elapsed, train_tokens, trainer = run(model, typical_sample)
 
         # Evaluation is forward-only and several times faster than a training
         # step, so projecting it from the training rate would overstate it
-        # badly. Measure it instead.
-        eval_sample = Dataset.from_list(ordered[: min(24, len(ordered))])
+        # badly. Measure it instead -- and measure it on a representative
+        # sample, since the real pass sweeps the whole eval set rather than
+        # its tail.
+        eval_sample = Dataset.from_list(representative_sample(ordered, min(24, len(ordered))))
         tokens_before = collator.padded_tokens
         eval_started = time.time()
         trainer.evaluate(eval_dataset=eval_sample)
@@ -530,6 +594,13 @@ def calibrate(cfg: Config, encoded: list[dict[str, list[int]]], steps: int = 8) 
             device_name=snapshot.get("device_name", ""),
             mean_gpu_watts=sampler.mean_power_w,
             grad_accum=cfg.train.grad_accum,
+            worst_seconds=worst_seconds,
+            mean_len_typical=round(
+                sum(len(e["input_ids"]) for e in typical_sample) / len(typical_sample)
+            ),
+            mean_len_worst=round(
+                sum(len(e["input_ids"]) for e in worst_sample) / len(worst_sample)
+            ),
             eval_seconds=eval_seconds,
             eval_padded_tokens=eval_tokens,
         )

@@ -528,11 +528,20 @@ dollars — by running eight real optimizer steps and extrapolating. Three thing
 about how it extrapolates:
 
 - **Training time comes from seconds/step, not tokens/second.** The reverse
-  looked more principled and was measurably wrong: calibration deliberately runs
-  the longest examples, so it clocks a high token rate at an ordinary step time,
-  while real mixed-length steps cost the same wall time carrying fewer tokens.
-  Against a real 1,266-step run the token-rate model under-predicted by **2.3x**;
-  step time predicted it within 9%, erring long.
+  looked more principled and was measurably wrong: a token-rate model
+  under-predicted a real 1,266-step run by **2.3x**, while step time predicted it
+  within 9%.
+- **Memory and time are measured in two phases, on different samples.** They are
+  different questions. Peak VRAM has to be an upper bound or it is not a bound,
+  so it is measured on the longest examples in the corpus. Wall time is a sum
+  over every example the run will touch, so it is measured on a sample drawn at
+  even quantiles of the length distribution. Measuring both on the longest
+  examples got the memory right and overstated the time by the ratio of the
+  longest example to the mean — on this corpus, **33.4 s/step against a real
+  14.7 s/step**, which projected 4h41m for a run that took well under half that.
+  The worst-case step time is still reported, as the stated bound it always was.
+  The worst-case phase runs first so it absorbs the one-time CUDA warm-up
+  instead of that landing in the measurement the projection is built from.
 - **Peak VRAM is measured on the longest examples**, not a random sample. With
   dynamic padding a short calibration easily misses the batch that would have
   OOMed. The verdict keys on **peak allocated** — what the run actually needs —
