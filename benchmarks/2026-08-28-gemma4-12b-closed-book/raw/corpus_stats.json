@@ -1,0 +1,94 @@
+{
+  "world": {
+    "contracts": 75,
+    "partners": 150,
+    "people": 40,
+    "opportunities": 45,
+    "prime_contracts": 44,
+    "sub_contracts": 31,
+    "active_contracts": 19,
+    "agencies_touched": 13
+  },
+  "seed": 42,
+  "scale": "demo",
+  "train": {
+    "total": 2532,
+    "by_layer": {
+      "recall": 1369,
+      "recommendation": 792,
+      "relational": 265,
+      "multihop": 106
+    },
+    "by_archetype": {
+      "contract_detail": 525,
+      "partner_profile": 450,
+      "teaming_history": 192,
+      "teaming_recommendation": 180,
+      "pp_citation": 144,
+      "prime_candidates": 144,
+      "bid_decision": 108,
+      "gap_analysis": 108,
+      "sub_candidates": 108,
+      "capability_experience": 90,
+      "person_profile": 64,
+      "capability_partners": 52,
+      "agency_portfolio": 39,
+      "personnel_span": 32,
+      "capability_bridge": 31,
+      "capability_and_agency": 31,
+      "contract_vehicle": 28,
+      "contract_value": 26,
+      "contract_cpars": 26,
+      "contract_end_year": 25,
+      "contract_customer": 25,
+      "contract_number": 24,
+      "contract_team": 24,
+      "contract_period": 23,
+      "vehicle_coverage": 18,
+      "warm_list_by_agency": 12,
+      "capability_inventory": 1,
+      "active_portfolio": 1,
+      "role_breakdown": 1
+    }
+  },
+  "eval": {
+    "total": 643,
+    "by_layer": {
+      "recall": 308,
+      "recommendation": 198,
+      "relational": 110,
+      "multihop": 27
+    },
+    "by_archetype": {
+      "partner_profile": 150,
+      "teaming_history": 96,
+      "contract_detail": 75,
+      "teaming_recommendation": 45,
+      "pp_citation": 36,
+      "prime_candidates": 36,
+      "capability_experience": 30,
+      "gap_analysis": 27,
+      "sub_candidates": 27,
+      "bid_decision": 27,
+      "person_profile": 16,
+      "agency_portfolio": 13,
+      "capability_bridge": 11,
+      "capability_and_agency": 10,
+      "capability_partners": 8,
+      "contract_value": 7,
+      "vehicle_coverage": 6,
+      "personnel_span": 5,
+      "contract_number": 4,
+      "contract_customer": 3,
+      "contract_period": 3,
+      "contract_cpars": 3,
+      "contract_team": 2,
+      "warm_list_by_agency": 1,
+      "contract_vehicle": 1,
+      "contract_end_year": 1
+    }
+  },
+  "probes": {
+    "total": 75
+  }
+}

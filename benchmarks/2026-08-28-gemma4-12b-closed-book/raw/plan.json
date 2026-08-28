@@ -1,0 +1,58 @@
+{
+  "run_name": "gemma4-12b-qra",
+  "model": "google/gemma-4-12B-it",
+  "tokens": {
+    "examples": 2532,
+    "real_tokens": 1342160,
+    "padded_tokens_per_epoch": 1351240,
+    "p50": 447,
+    "p90": 1193,
+    "p99": 1394,
+    "longest": 1934,
+    "max_seq_len": 2048,
+    "over_cap": 0,
+    "distinct_answers": 952,
+    "median_repetitions": 3,
+    "max_repetitions": 7,
+    "eval_examples": 643,
+    "eval_padded_tokens": 330496
+  },
+  "schedule": {
+    "effective_batch": 16,
+    "steps_per_epoch": 159,
+    "total_steps": 477,
+    "warmup_steps": 14
+  },
+  "epochs": 3.0,
+  "total_padded_tokens": 4053720,
+  "calibration": {
+    "steps": 8,
+    "seconds": 16.688992977142334,
+    "padded_tokens": 13160,
+    "peak_allocated_gb": 19.470963954925537,
+    "peak_reserved_gb": 29.095703125,
+    "device_total_gb": 31.84234619140625,
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "mean_gpu_watts": 379.68142857142857,
+    "grad_accum": 16,
+    "eval_seconds": 11.491007328033447,
+    "eval_padded_tokens": 35880
+  },
+  "projected_seconds": 16873.907650834022,
+  "cost": {
+    "hours": 4.687196569676117,
+    "mean_gpu_watts": 379.68142857142857,
+    "system_overhead_watts": 120.0,
+    "energy_kwh": 2.3421050779308614,
+    "electricity_usd": 0.3981578632482465,
+    "cloud_usd": null,
+    "usd_per_kwh": 0.17,
+    "lines": [
+      "mean GPU draw      380 W",
+      "system overhead    120 W (assumed)",
+      "energy             2.342 kWh",
+      "electricity        $0.40 (at $0.170/kWh, assumed)",
+      "cloud equivalent   not set (metrics.cloud_usd_per_hour)"
+    ]
+  }
+}

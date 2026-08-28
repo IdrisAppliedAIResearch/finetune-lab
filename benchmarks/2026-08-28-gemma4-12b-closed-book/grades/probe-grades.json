@@ -1,0 +1,540 @@
+{
+  "summary": {
+    "n": 75,
+    "layers": {
+      "probe": {
+        "n": 75,
+        "means": {
+          "exact_hit": 0.29333333333333333
+        }
+      }
+    }
+  },
+  "items": [
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2025",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$2.6M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$3.0M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "$1.5M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2024",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2020",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$2.8M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "75F40116C00010",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "75S20322D00011",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "SDH19C00012",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75FCMC16D00013",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2018",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "75FCMC23C00016",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75D30123D00017",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2021",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "2025",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2021",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75R60224D00021",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2019",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75R60218C00024",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "Satisfactory",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2020",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "75FCMC18D00027",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75A50123C00028",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2022",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "SDH24C00030",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2019",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2027",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75F40120D00035",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$10.2M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75D30121D00037",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "$1.7M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2022",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2020",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$5.4M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75A50123D00043",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$0.8M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75R60223D00045",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "Exceptional",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75A50117C00048",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75F40121D00049",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75R60218C00050",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$5.1M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75N93124C00052",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2023",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "Marginal",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2023",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2029",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "$3.9M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "Exceptional",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "$1.2M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75FCMC21D00061",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$3.8M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2022",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "$15.2M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "Exceptional",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75R60219D00067",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$3.7M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$5.2M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$0.7M",
+      "facet": "value"
+    },
+    {
+      "archetype": "contract_number",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "75D30124D00071",
+      "facet": "number"
+    },
+    {
+      "archetype": "contract_end_year",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "2021",
+      "facet": "end_year"
+    },
+    {
+      "archetype": "contract_cpars",
+      "layer": "probe",
+      "exact_hit": 1.0,
+      "expected": "Very Good",
+      "facet": "cpars"
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "probe",
+      "exact_hit": 0.0,
+      "expected": "$14.1M",
+      "facet": "value"
+    }
+  ]
+}

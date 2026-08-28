@@ -1,0 +1,29 @@
+=== grade: generations.jsonl ===
+items graded: 120
+
+recall  (n=56)
+  entity F1                        0.325
+  entity recall                    0.325
+  invented partner names           0.00 per answer
+
+relational  (n=24)
+  entity F1                        0.328
+  entity recall                    0.339
+  invented partner names           0.00 per answer
+
+multihop  (n=4)
+  entity F1                        0.287
+  entity recall                    0.202
+  invented partner names           0.00 per answer
+
+recommendation  (n=36)
+  precision@4 vs golden            0.114
+  mean tier of picks (0-4)         1.818
+  nDCG@4                           0.435
+  picks covering the gap           87.1%
+  hard negatives recommended       0.32 per answer
+  hard negatives rejected          11.7%
+  ineligible contracts cited       1.60 per answer
+  invented partner names           0.00 per answer
+  answers naming anything          100.0%
+  answers that ran to completion   95.5%

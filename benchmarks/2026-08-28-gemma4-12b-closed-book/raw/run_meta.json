@@ -1,0 +1,121 @@
+{
+  "config": {
+    "run": {
+      "name": "gemma4-12b-qra",
+      "output_dir": "outputs",
+      "seed": 42,
+      "report_to": "tensorboard"
+    },
+    "model": {
+      "base": "google/gemma-4-12B-it",
+      "trust_remote_code": false,
+      "attn_implementation": "sdpa",
+      "dtype": "bfloat16",
+      "load_in_4bit": true,
+      "bnb_4bit_quant_type": "nf4",
+      "bnb_4bit_compute_dtype": "bfloat16",
+      "bnb_4bit_use_double_quant": true,
+      "gradient_checkpointing": true
+    },
+    "lora": {
+      "r": 32,
+      "alpha": 64,
+      "dropout": 0.05,
+      "target_modules": "auto",
+      "exclude_modules": [
+        "vision_embedder",
+        "embed_vision",
+        "embed_audio"
+      ],
+      "modules_to_save": [],
+      "bias": "none",
+      "use_rslora": false
+    },
+    "data": {
+      "train_path": "data/processed/train.jsonl",
+      "eval_path": "data/processed/eval.jsonl",
+      "eval_split_ratio": 0.1,
+      "max_seq_len": 2048,
+      "drop_overlong": true,
+      "system_prompt": "You are the past performance and teaming knowledge base for Cardinal Ridge Public Health Group, a small business public health contractor. You answer from the firm's contract history, partner network, and capability record. Rank recommendations and give the evidence each one rests on.",
+      "reasoning_format": "native",
+      "think_open": "<think>",
+      "think_close": "</think>",
+      "chat_template_kwargs": {
+        "enable_thinking": true
+      },
+      "native_reasoning_close": "<channel|>",
+      "train_on_reasoning": true
+    },
+    "train": {
+      "epochs": 2.0,
+      "per_device_batch_size": 1,
+      "grad_accum": 16,
+      "learning_rate": 0.0001,
+      "lr_scheduler": "cosine",
+      "warmup_ratio": 0.03,
+      "weight_decay": 0.0,
+      "max_grad_norm": 1.0,
+      "optim": "paged_adamw_8bit",
+      "logging_steps": 5,
+      "eval_steps": 50,
+      "save_steps": 100,
+      "save_total_limit": 3,
+      "dataloader_num_workers": 0,
+      "max_steps": -1,
+      "gate": {
+        "enabled": true,
+        "extra_epochs": 1.0,
+        "min_rel_improvement": 0.005,
+        "overfit_tolerance": 0.002,
+        "lr_scale": 0.5
+      },
+      "resume_adapter": null
+    },
+    "metrics": {
+      "enabled": true,
+      "power_sample_seconds": 5.0,
+      "electricity_usd_per_kwh": 0.17,
+      "system_overhead_watts": 120.0,
+      "cloud_usd_per_hour": 0.0
+    }
+  },
+  "versions": {
+    "torch": "2.11.0+cu128",
+    "transformers": "5.16.1",
+    "peft": "0.20.0",
+    "accelerate": "1.14.0",
+    "datasets": "5.0.1",
+    "bitsandbytes": "0.50.2"
+  },
+  "timestamp": "2026-08-28 10:12:36",
+  "data_stats": {
+    "train": {
+      "kept": 2532,
+      "dropped": 0,
+      "truncated": 0,
+      "len_min": 128,
+      "len_mean": 530,
+      "len_max": 1934
+    },
+    "eval": {
+      "kept": 643,
+      "dropped": 0,
+      "truncated": 0,
+      "len_min": 131,
+      "len_mean": 511,
+      "len_max": 1934
+    }
+  },
+  "schedule": {
+    "effective_batch": 16,
+    "steps_per_epoch": 159,
+    "total_steps": 318,
+    "warmup_steps": 9
+  },
+  "parameters": {
+    "trainable": 131870720,
+    "total": 6619754496,
+    "percent": 1.9921
+  }
+}

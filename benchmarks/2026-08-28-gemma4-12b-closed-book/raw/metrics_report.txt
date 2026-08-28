@@ -1,0 +1,41 @@
+=== run: gemma4-12b-qra ===
+
+Schedule
+  epochs               2.00
+  optimizer steps      318
+  effective batch      16
+  train examples       2,532
+
+Throughput
+  wall time            1h 36m 19s
+  sec / step           18.17
+  tokens / sec         868
+  tokens (real)        4,982,980
+  tokens (padded)      5,015,952
+  padding waste        0.7%
+
+Memory
+  device               NVIDIA GeForce RTX 5090
+  peak allocated       19.99 GB
+  peak reserved        24.08 GB
+  device total         31.84 GB
+  headroom             7.76 GB
+
+Power
+  mean draw            343 W
+  peak draw            473 W
+  mean utilisation     72%
+  peak temperature     72 C
+  samples              1,147
+
+Cost
+  mean GPU draw      343 W
+  system overhead    120 W (assumed)
+  energy             0.743 kWh
+  electricity        $0.13 (at $0.170/kWh, assumed)
+  cloud equivalent   not set (metrics.cloud_usd_per_hour)
+
+Loss
+  train first -> last  3.0119 -> 0.1255
+  eval first -> last   0.3303 -> 0.1526
+  best eval            0.1526 @ step 318

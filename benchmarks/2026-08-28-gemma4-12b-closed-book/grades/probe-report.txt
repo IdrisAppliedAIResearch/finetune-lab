@@ -1,0 +1,5 @@
+=== grade: gemma4-12b-qra ===
+items graded: 75
+
+probe  (n=75)
+  exact value present              29.3%

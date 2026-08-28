@@ -1,0 +1,79 @@
+{
+  "should_continue": false,
+  "reason": "eval loss is still falling (+30.30%), but eval now sits 17.8% above train -- the model is fitting phrasing rather than content, and another epoch would deepen that",
+  "epochs_trained": 2.0,
+  "baseline": null,
+  "checks": [
+    {
+      "name": "still learning",
+      "passed": true,
+      "detail": "final epoch best 0.1526 vs prior best 0.2190 = +30.30% (need >= 0.50%)"
+    },
+    {
+      "name": "not memorising",
+      "passed": false,
+      "detail": "eval 0.1526 vs train 0.1255 = 17.8% above (limit 10.0%)"
+    },
+    {
+      "name": "still at the floor",
+      "passed": true,
+      "detail": "last 0.1526 @ step 318 vs best 0.1526 @ step 318; ceiling 0.1529"
+    },
+    {
+      "name": "terminal slope (context, not a gate)",
+      "passed": true,
+      "detail": "0.1529 -> 0.1526 = +0.19% between the last two measurements"
+    }
+  ],
+  "curve": [
+    {
+      "step": 50,
+      "epoch": 0.315955766192733,
+      "loss": 0.33031216263771057,
+      "source": "trainer_state",
+      "train_loss": 0.31648452281951905
+    },
+    {
+      "step": 100,
+      "epoch": 0.631911532385466,
+      "loss": 0.24978794157505035,
+      "source": "trainer_state",
+      "train_loss": 0.2611527442932129
+    },
+    {
+      "step": 150,
+      "epoch": 0.9478672985781991,
+      "loss": 0.21898910403251648,
+      "source": "trainer_state",
+      "train_loss": 0.20445451736450196
+    },
+    {
+      "step": 200,
+      "epoch": 1.259083728278041,
+      "loss": 0.18799889087677002,
+      "source": "trainer_state",
+      "train_loss": 0.1523713231086731
+    },
+    {
+      "step": 250,
+      "epoch": 1.575039494470774,
+      "loss": 0.16154733300209045,
+      "source": "trainer_state",
+      "train_loss": 0.13638728857040405
+    },
+    {
+      "step": 300,
+      "epoch": 1.890995260663507,
+      "loss": 0.15292812883853912,
+      "source": "trainer_state",
+      "train_loss": 0.13579548597335817
+    },
+    {
+      "step": 318,
+      "epoch": 2.0,
+      "loss": 0.15264122188091278,
+      "source": "trainer_state",
+      "train_loss": 0.1254875421524048
+    }
+  ]
+}

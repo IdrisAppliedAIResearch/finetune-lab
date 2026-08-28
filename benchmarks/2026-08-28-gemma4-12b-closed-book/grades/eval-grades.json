@@ -1,0 +1,2090 @@
+{
+  "summary": {
+    "n": 120,
+    "layers": {
+      "multihop": {
+        "n": 4,
+        "means": {
+          "entity_precision": 0.5,
+          "entity_recall": 0.20155677655677656,
+          "entity_f1": 0.28656015037593985,
+          "hallucinated": 0.0
+        }
+      },
+      "recommendation": {
+        "n": 36,
+        "means": {
+          "entity_precision": 0.6709235209235209,
+          "entity_recall": 0.6280423280423281,
+          "entity_f1": 0.6458751393534002,
+          "hallucinated": 0.0,
+          "precision_at_k": 0.11419753086419752,
+          "mean_tier": 1.8179012345679013,
+          "ineligible_cited": 1.6,
+          "named_any": 1.0,
+          "ndcg_at_k": 0.4351447925886874,
+          "gap_coverage": 0.8712121212121212,
+          "traps_recommended": 0.3181818181818182,
+          "trap_rejection_recall": 0.11666666666666665,
+          "answer_complete": 0.9545454545454546
+        }
+      },
+      "relational": {
+        "n": 24,
+        "means": {
+          "entity_precision": 0.34408959096459096,
+          "entity_recall": 0.33908730158730155,
+          "entity_f1": 0.32788139898941115,
+          "hallucinated": 0.0
+        }
+      },
+      "recall": {
+        "n": 56,
+        "means": {
+          "entity_precision": 0.36270549886621317,
+          "entity_recall": 0.32526333785262357,
+          "entity_f1": 0.3253589152658978,
+          "hallucinated": 0.0
+        }
+      }
+    },
+    "floor": {
+      "n": 120,
+      "layers": {
+        "multihop": {
+          "n": 4,
+          "means": {
+            "entity_precision": 0.0375,
+            "entity_recall": 0.015155677655677654,
+            "entity_f1": 0.02122326203208556,
+            "hallucinated": 0.0
+          }
+        },
+        "recommendation": {
+          "n": 36,
+          "means": {
+            "entity_precision": 0.02222222222222222,
+            "entity_recall": 0.010582010582010581,
+            "entity_f1": 0.013271604938271606,
+            "hallucinated": 0.0,
+            "precision_at_k": 0.018518518518518517,
+            "mean_tier": 0.7907407407407407,
+            "ineligible_cited": 0.0,
+            "named_any": 0.8148148148148147,
+            "ndcg_at_k": 0.2547975148634363,
+            "gap_coverage": 0.7795454545454545,
+            "traps_recommended": 0.1,
+            "trap_rejection_recall": 0.0,
+            "answer_complete": 0.0
+          }
+        },
+        "relational": {
+          "n": 24,
+          "means": {
+            "entity_precision": 0.016666666666666666,
+            "entity_recall": 0.008511904761904762,
+            "entity_f1": 0.009649470899470899,
+            "hallucinated": 0.0
+          }
+        },
+        "recall": {
+          "n": 56,
+          "means": {
+            "entity_precision": 0.008928571428571428,
+            "entity_recall": 0.004653976975405547,
+            "entity_f1": 0.006051203698262521,
+            "hallucinated": 0.0
+          }
+        }
+      }
+    }
+  },
+  "items": [
+    {
+      "archetype": "capability_bridge",
+      "layer": "multihop",
+      "entity_precision": 0.6666666666666666,
+      "entity_recall": 0.2857142857142857,
+      "entity_f1": 0.4,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Glenarden Health Sciences",
+        "co:Glenarden Health Solutions",
+        "co:Marbury Analytics Group",
+        "co:Northfield Informatics",
+        "co:Umbergrove Informatics"
+      ]
+    },
+    {
+      "archetype": "gap_analysis",
+      "layer": "recommendation",
+      "entity_precision": 0.7272727272727273,
+      "entity_recall": 0.6666666666666666,
+      "entity_f1": 0.6956521739130435,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Dominion Park Health Solutions",
+        "co:Dunmore Health Analytics",
+        "co:Inglewood Park Health Strategies",
+        "co:Lakeshore Informatics"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.3333333333333333,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "k:k036"
+      ]
+    },
+    {
+      "archetype": "capability_and_agency",
+      "layer": "multihop",
+      "entity_precision": 0.5,
+      "entity_recall": 0.2,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Cypress Hollow Biostatistics",
+        "co:Foxglove Biostatistics",
+        "co:Silverthorn Health Systems",
+        "co:Yarrowfield Analytics Group"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:maternal_child",
+        "k:k042"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.125,
+      "entity_recall": 0.25,
+      "entity_f1": 0.16666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:grants_management",
+        "co:Chesapeake Health Consulting",
+        "co:Chesapeake Health Solutions"
+      ]
+    },
+    {
+      "archetype": "gap_analysis",
+      "layer": "recommendation",
+      "entity_precision": 0.6428571428571429,
+      "entity_recall": 0.75,
+      "entity_f1": 0.6923076923076924,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Dunmore Health Analytics",
+        "co:Lakeshore Informatics",
+        "co:Larkspur Health Strategies"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.15384615384615385,
+      "entity_f1": 0.21052631578947367,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:clinical_quality",
+        "cap:data_modernization",
+        "cap:ehr_integration",
+        "cap:health_communications",
+        "cap:health_policy"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.75,
+      "entity_recall": 1.0,
+      "entity_f1": 0.8571428571428571,
+      "hallucinated": 0.0,
+      "missed": []
+    },
+    {
+      "archetype": "pp_citation",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.3333333333333333,
+      "ineligible_cited": 2.0,
+      "named_any": 1.0,
+      "cited": [
+        "k068",
+        "k060",
+        "k003"
+      ],
+      "golden": [
+        "k041",
+        "k021",
+        "k034"
+      ]
+    },
+    {
+      "archetype": "sub_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.25,
+      "mean_tier": 2.0,
+      "ndcg_at_k": 0.4333996836983663,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.3333333333333333,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Yarrowfield Analytics Group"
+      ],
+      "golden_top": [
+        "Whitmore Applied Sciences",
+        "Silverthorn Health Solutions",
+        "Marbury Analytics Group",
+        "Lakeshore Informatics"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.125,
+      "entity_recall": 0.2,
+      "entity_f1": 0.15384615384615385,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:epi_surveillance",
+        "cap:outbreak_response",
+        "cap:vaccine_safety"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.6666666666666666,
+      "entity_recall": 0.4444444444444444,
+      "entity_f1": 0.5333333333333333,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:cloud_migration",
+        "cap:cybersecurity",
+        "cap:ehr_integration",
+        "cap:fhir_interop",
+        "cap:registry_dev"
+      ]
+    },
+    {
+      "archetype": "capability_partners",
+      "layer": "relational",
+      "entity_precision": 0.23076923076923078,
+      "entity_recall": 0.14285714285714285,
+      "entity_f1": 0.17647058823529413,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Brightwater Public Health Group",
+        "co:Chesapeake Biostatistics",
+        "co:Clearfield Health Analytics",
+        "co:Coldspring Research Partners",
+        "co:Concord Point Data Systems",
+        "co:Cypress Hollow Biostatistics"
+      ]
+    },
+    {
+      "archetype": "prime_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 0.75,
+      "ndcg_at_k": 0.376848805629635,
+      "gap_coverage": 1.0,
+      "traps_recommended": 1.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Strategies"
+      ],
+      "golden_top": [
+        "Cedarbrook Analytics Group",
+        "Ironwood Health Solutions",
+        "Keystone Bluff Health Advisory",
+        "Yarrowfield Health Analytics"
+      ],
+      "traps_picked": [
+        "Lakeshore Informatics"
+      ]
+    },
+    {
+      "archetype": "bid_decision",
+      "layer": "recommendation",
+      "entity_precision": 0.6,
+      "entity_recall": 0.6,
+      "entity_f1": 0.6,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Cedarbrook Analytics Group",
+        "co:Silverthorn Public Health Partners"
+      ]
+    },
+    {
+      "archetype": "sub_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.75,
+      "ndcg_at_k": 0.4316587806335842,
+      "gap_coverage": 0.5,
+      "traps_recommended": 1.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Strategies",
+        "Keystone Bluff Health Sciences"
+      ],
+      "golden_top": [
+        "Keystone Bluff Analytics Group",
+        "Eastport Health Research",
+        "Marbury Analytics Group",
+        "Northfield Analytics Group"
+      ],
+      "traps_picked": [
+        "Lakeshore Informatics"
+      ]
+    },
+    {
+      "archetype": "bid_decision",
+      "layer": "recommendation",
+      "entity_precision": 0.6,
+      "entity_recall": 0.6,
+      "entity_f1": 0.6,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Lakeshore Informatics",
+        "co:Whitmore Applied Sciences"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.14285714285714285,
+      "entity_f1": 0.18181818181818182,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:behavioral_health",
+        "cap:biostatistics",
+        "cap:epi_surveillance",
+        "k:k047",
+        "k:k051",
+        "k:k056"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.2222222222222222,
+      "entity_recall": 0.25,
+      "entity_f1": 0.23529411764705882,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:health_informatics",
+        "cap:health_policy",
+        "cap:immunization",
+        "co:Dunmore Health Analytics",
+        "co:Merrivale Public Health Partners",
+        "co:Northfield Analytics Group"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.5,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.4,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality",
+        "cap:epi_surveillance",
+        "k:k024",
+        "k:k034"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.2222222222222222,
+      "entity_f1": 0.26666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality",
+        "cap:epi_surveillance",
+        "cap:health_equity",
+        "cap:health_policy",
+        "cap:lab_systems",
+        "cap:medical_countermeasures"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:grants_management",
+        "k:k045"
+      ]
+    },
+    {
+      "archetype": "vehicle_coverage",
+      "layer": "relational",
+      "entity_precision": 0.2,
+      "entity_recall": 0.14285714285714285,
+      "entity_f1": 0.16666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "co:Bluestone Applied Sciences",
+        "co:Chesapeake Health Solutions",
+        "co:Chesapeake Health Systems",
+        "co:Dunmore Health Technologies",
+        "co:Inglewood Park Health Systems"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.2,
+      "entity_f1": 0.22222222222222224,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:environmental_health",
+        "cap:health_communications",
+        "k:k041",
+        "k:k070"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.2222222222222222,
+      "entity_f1": 0.26666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:emergency_preparedness",
+        "cap:epi_surveillance",
+        "cap:outbreak_response",
+        "cap:workforce_training",
+        "k:k052"
+      ]
+    },
+    {
+      "archetype": "sub_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.3333333333333333,
+      "ndcg_at_k": 0.20796811593222064,
+      "gap_coverage": 0.6666666666666666,
+      "traps_recommended": 1.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 0.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Strategies"
+      ],
+      "golden_top": [
+        "Sumac Hill Health Technologies",
+        "Silverthorn Public Health Partners",
+        "Keystone Bluff Analytics Group",
+        "Lakeshore Epidemiology Group"
+      ],
+      "traps_picked": [
+        "Lakeshore Informatics"
+      ]
+    },
+    {
+      "archetype": "gap_analysis",
+      "layer": "recommendation",
+      "entity_precision": 0.9,
+      "entity_recall": 0.6428571428571429,
+      "entity_f1": 0.75,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Dunmore Health Analytics",
+        "co:Dunmore Health Technologies",
+        "co:Inglewood Park Health Strategies",
+        "co:Lakeshore Informatics",
+        "co:Larkspur Health Strategies"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.5,
+      "entity_recall": 0.6666666666666666,
+      "entity_f1": 0.5714285714285715,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Keystone Bluff Analytics Group",
+        "co:Lakeshore Health Research"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.2857142857142857,
+      "entity_recall": 0.25,
+      "entity_f1": 0.26666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:data_modernization",
+        "cap:global_health",
+        "cap:hiv_sti",
+        "cap:lab_systems",
+        "cap:maternal_child",
+        "cap:vaccine_safety"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.14285714285714285,
+      "entity_f1": 0.15384615384615383,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality",
+        "cap:ehr_integration",
+        "cap:global_health",
+        "cap:health_equity",
+        "cap:hiv_sti",
+        "cap:maternal_child"
+      ]
+    },
+    {
+      "archetype": "teaming_recommendation",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.75,
+      "ndcg_at_k": 0.3700831834484017,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences"
+      ],
+      "golden_top": [
+        "Marbury Analytics Group",
+        "Chesapeake Health Systems",
+        "Lakeshore Health Research",
+        "Tidewater Population Health"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "capability_experience",
+      "layer": "recall",
+      "entity_precision": 0.42857142857142855,
+      "entity_recall": 0.12,
+      "entity_f1": 0.1875,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:biostatistics",
+        "cap:clinical_quality",
+        "cap:community_engagement",
+        "cap:data_modernization",
+        "cap:environmental_health",
+        "cap:epi_surveillance"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.2222222222222222,
+      "entity_recall": 0.2222222222222222,
+      "entity_f1": 0.2222222222222222,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:community_engagement",
+        "cap:health_equity",
+        "cap:health_policy",
+        "cap:lab_systems",
+        "co:Chesapeake Informatics",
+        "co:Coldspring Scientific"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.6666666666666666,
+      "entity_recall": 0.4444444444444444,
+      "entity_f1": 0.5333333333333333,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality",
+        "cap:fhir_interop",
+        "cap:program_evaluation",
+        "cap:registry_dev",
+        "cap:vaccine_safety"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "cap:medical_countermeasures",
+        "cap:program_evaluation",
+        "co:Belmont Reach Research Partners"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.375,
+      "entity_recall": 0.5,
+      "entity_f1": 0.42857142857142855,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "co:Pinehollow Health Advisory",
+        "co:Whitmore Applied Sciences"
+      ]
+    },
+    {
+      "archetype": "capability_partners",
+      "layer": "relational",
+      "entity_precision": 0.375,
+      "entity_recall": 0.14285714285714285,
+      "entity_f1": 0.20689655172413796,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Allegheny Public Health Partners",
+        "co:Belmont Reach Public Health Group",
+        "co:Belmont Reach Public Health Partners",
+        "co:Chesapeake Biostatistics",
+        "co:Clearfield Health Analytics",
+        "co:Coldspring Data Systems"
+      ]
+    },
+    {
+      "archetype": "teaming_recommendation",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.5,
+      "ndcg_at_k": 0.40917060968320795,
+      "gap_coverage": 0.5,
+      "traps_recommended": 1.0,
+      "trap_rejection_recall": 0.3333333333333333,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Strategies"
+      ],
+      "golden_top": [
+        "Keystone Bluff Analytics Group",
+        "Eastport Health Research",
+        "Marbury Analytics Group",
+        "Silverthorn Public Health Partners"
+      ],
+      "traps_picked": [
+        "Lakeshore Informatics"
+      ]
+    },
+    {
+      "archetype": "sub_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 2.5,
+      "ndcg_at_k": 0.5060124687549364,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Yarrowfield Analytics Group"
+      ],
+      "golden_top": [
+        "Lakeshore Health Research",
+        "Tidewater Population Health",
+        "Merrivale Health Systems",
+        "Cypress Hollow Health Sciences"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "prime_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.0,
+      "ndcg_at_k": 0.2749758926843337,
+      "gap_coverage": 1.0,
+      "traps_recommended": 1.0,
+      "trap_rejection_recall": 0.3333333333333333,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Keystone Bluff Health Advisory"
+      ],
+      "golden_top": [
+        "Lakeshore Health Research",
+        "Coldspring Scientific",
+        "Silverthorn Public Health Partners",
+        "Pinehollow Health Systems"
+      ],
+      "traps_picked": [
+        "Keystone Bluff Health Sciences"
+      ]
+    },
+    {
+      "archetype": "contract_value",
+      "layer": "recall",
+      "entity_precision": 0.6666666666666666,
+      "entity_recall": 1.0,
+      "entity_f1": 0.8,
+      "hallucinated": 0.0,
+      "missed": []
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.2,
+      "entity_f1": 0.22222222222222224,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:biostatistics",
+        "cap:epi_surveillance",
+        "k:k052",
+        "k:k073"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.2,
+      "entity_f1": 0.25,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:biostatistics",
+        "cap:chronic_disease",
+        "k:k023",
+        "k:k053"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.1111111111111111,
+      "entity_f1": 0.13333333333333333,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:cybersecurity",
+        "cap:data_modernization",
+        "cap:emergency_preparedness",
+        "cap:health_policy",
+        "cap:lab_systems",
+        "cap:maternal_child"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.09090909090909091,
+      "entity_f1": 0.11764705882352942,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:behavioral_health",
+        "cap:clinical_quality",
+        "cap:epi_surveillance",
+        "cap:grants_management",
+        "cap:health_communications",
+        "cap:health_policy"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.42857142857142855,
+      "entity_f1": 0.375,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:cybersecurity",
+        "cap:outbreak_response",
+        "co:Pinehollow Health Systems",
+        "co:Willowmere Health Analytics"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.16666666666666666,
+      "entity_f1": 0.16666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:emergency_preparedness",
+        "cap:health_policy",
+        "cap:program_evaluation",
+        "cap:registry_dev",
+        "cap:workforce_training"
+      ]
+    },
+    {
+      "archetype": "gap_analysis",
+      "layer": "recommendation",
+      "entity_precision": 0.8181818181818182,
+      "entity_recall": 0.75,
+      "entity_f1": 0.7826086956521738,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Dunmore Health Analytics",
+        "co:Keystone Bluff Analytics Group",
+        "co:Northfield Analytics Group"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.625,
+      "entity_recall": 0.7142857142857143,
+      "entity_f1": 0.6666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Chesapeake Health Systems",
+        "co:Sumac Hill Health Strategies"
+      ]
+    },
+    {
+      "archetype": "bid_decision",
+      "layer": "recommendation",
+      "entity_precision": 0.5,
+      "entity_recall": 0.5,
+      "entity_f1": 0.5,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Silverthorn Public Health Partners",
+        "co:Sumac Hill Health Technologies"
+      ]
+    },
+    {
+      "archetype": "agency_portfolio",
+      "layer": "recall",
+      "entity_precision": 1.0,
+      "entity_recall": 0.17857142857142858,
+      "entity_f1": 0.30303030303030304,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:behavioral_health",
+        "cap:biostatistics",
+        "cap:chronic_disease",
+        "cap:clinical_quality",
+        "cap:cybersecurity",
+        "cap:environmental_health"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.15384615384615385,
+      "entity_f1": 0.21052631578947367,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:clinical_quality",
+        "cap:community_engagement",
+        "cap:data_science",
+        "cap:health_equity",
+        "cap:lab_systems"
+      ]
+    },
+    {
+      "archetype": "prime_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 0.75,
+      "ndcg_at_k": 0.22230475644198824,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Strategies"
+      ],
+      "golden_top": [
+        "Concord Point Health Solutions",
+        "Longmeadow Population Health",
+        "Larkspur Health Strategies",
+        "Merrivale Health Systems"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "k:k034"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.125,
+      "entity_f1": 0.14285714285714288,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality",
+        "cap:environmental_health",
+        "cap:global_health",
+        "cap:grants_management",
+        "cap:maternal_child",
+        "cap:workforce_training"
+      ]
+    },
+    {
+      "archetype": "sub_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 2.0,
+      "ndcg_at_k": 0.4151830784381443,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.3333333333333333,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Strategies",
+        "Yarrowfield Analytics Group"
+      ],
+      "golden_top": [
+        "Dunmore Health Analytics",
+        "Dominion Park Health Analytics",
+        "Foxglove Data Systems",
+        "Glenarden Informatics"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.2222222222222222,
+      "entity_f1": 0.26666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:behavioral_health",
+        "cap:emergency_preparedness",
+        "cap:lab_systems",
+        "cap:maternal_child",
+        "cap:medical_countermeasures",
+        "k:k017"
+      ]
+    },
+    {
+      "archetype": "gap_analysis",
+      "layer": "recommendation",
+      "entity_precision": 0.75,
+      "entity_recall": 0.6428571428571429,
+      "entity_f1": 0.6923076923076924,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Dunmore Health Analytics",
+        "co:Inglewood Park Health Strategies",
+        "co:Keystone Bluff Analytics Group",
+        "co:Lakeshore Informatics",
+        "co:Northfield Analytics Group"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.5,
+      "entity_recall": 0.3,
+      "entity_f1": 0.37499999999999994,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:fhir_interop",
+        "cap:grants_management",
+        "cap:lab_systems",
+        "cap:medical_countermeasures",
+        "cap:registry_dev"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.3333333333333333,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "k:k018"
+      ]
+    },
+    {
+      "archetype": "capability_and_agency",
+      "layer": "multihop",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.15384615384615385,
+      "entity_f1": 0.21052631578947367,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Cardinal Ridge Analytics Group",
+        "co:Chesapeake Biostatistics",
+        "co:Dominion Park Health Analytics",
+        "co:Inglewood Park Research Partners",
+        "co:Lakeshore Population Health",
+        "co:Longmeadow Population Health"
+      ]
+    },
+    {
+      "archetype": "sub_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 2.25,
+      "ndcg_at_k": 0.5975950124980254,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Keystone Bluff Health Advisory"
+      ],
+      "golden_top": [
+        "Glenarden Health Solutions",
+        "Marbury Analytics Group",
+        "Chesapeake Biostatistics",
+        "Eastport Health Research"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "sub_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 2.25,
+      "ndcg_at_k": 0.590829390316792,
+      "gap_coverage": 0.75,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Keystone Bluff Health Advisory"
+      ],
+      "golden_top": [
+        "Cedarbrook Analytics Group",
+        "Junipero Analytics Group",
+        "Wexford Health Systems",
+        "Yarrowfield Analytics Group"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.16666666666666666,
+      "entity_f1": 0.16666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "cap:health_equity",
+        "cap:health_policy",
+        "cap:immunization",
+        "cap:outbreak_response"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.75,
+      "entity_f1": 0.46153846153846156,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Kestrel Public Health Group"
+      ]
+    },
+    {
+      "archetype": "contract_customer",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.5,
+      "entity_f1": 0.4,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance"
+      ]
+    },
+    {
+      "archetype": "pp_citation",
+      "layer": "recommendation",
+      "precision_at_k": 0.3333333333333333,
+      "mean_tier": 3.0,
+      "ineligible_cited": 1.0,
+      "named_any": 1.0,
+      "cited": [
+        "k030",
+        "k046",
+        "k053"
+      ],
+      "golden": [
+        "k033",
+        "k030",
+        "k019"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.42857142857142855,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.375,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality",
+        "cap:ehr_integration",
+        "cap:environmental_health",
+        "cap:hiv_sti",
+        "cap:maternal_child",
+        "k:k047"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.1111111111111111,
+      "entity_f1": 0.13333333333333333,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:behavioral_health",
+        "cap:biostatistics",
+        "cap:chronic_disease",
+        "cap:data_science",
+        "cap:environmental_health",
+        "cap:hiv_sti"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality",
+        "cap:data_science",
+        "cap:maternal_child",
+        "cap:registry_dev"
+      ]
+    },
+    {
+      "archetype": "prime_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.5,
+      "ndcg_at_k": 0.33406376813555877,
+      "gap_coverage": 1.0,
+      "traps_recommended": 1.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Umbergrove Informatics"
+      ],
+      "golden_top": [
+        "Marbury Analytics Group",
+        "Foxglove Biostatistics",
+        "Dunmore Health Technologies",
+        "Coldspring Scientific"
+      ],
+      "traps_picked": [
+        "Keystone Bluff Health Sciences"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.5,
+      "entity_recall": 0.6666666666666666,
+      "entity_f1": 0.5714285714285715,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.375,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.35294117647058826,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:clinical_quality",
+        "cap:ehr_integration",
+        "cap:health_equity",
+        "co:Eastport Health Research",
+        "co:Lakeshore Health Solutions",
+        "co:Tidewater Population Health"
+      ]
+    },
+    {
+      "archetype": "prime_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.25,
+      "ndcg_at_k": 0.3243125037583555,
+      "gap_coverage": 0.75,
+      "traps_recommended": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Health Systems",
+        "Keystone Bluff Health Sciences",
+        "Silverthorn Research Partners",
+        "Merrivale Public Health Partners"
+      ],
+      "golden_top": [
+        "Lakeshore Informatics",
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Whitmore Applied Sciences"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.6666666666666666,
+      "entity_recall": 0.5714285714285714,
+      "entity_f1": 0.6153846153846153,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Dominion Park Health Solutions",
+        "co:Larkspur Health Strategies",
+        "co:Windham Public Health Partners"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.42857142857142855,
+      "entity_f1": 0.375,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:hiv_sti",
+        "cap:outbreak_response",
+        "cap:program_evaluation",
+        "co:Glenarden Health Research"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.18181818181818182,
+      "entity_f1": 0.23529411764705885,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:behavioral_health",
+        "cap:cloud_migration",
+        "cap:emergency_preparedness",
+        "cap:epi_surveillance",
+        "cap:health_communications",
+        "cap:hiv_sti"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.5,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.4,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:health_informatics",
+        "cap:maternal_child",
+        "cap:workforce_training",
+        "k:k007",
+        "k:k046"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "k:k004"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.1111111111111111,
+      "entity_recall": 0.14285714285714285,
+      "entity_f1": 0.125,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:community_engagement",
+        "cap:health_equity",
+        "cap:outbreak_response",
+        "co:Foxglove Research Partners",
+        "co:Northfield Analytics Group",
+        "co:Wexford Health Systems"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.1111111111111111,
+      "entity_f1": 0.13333333333333333,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:behavioral_health",
+        "cap:biostatistics",
+        "cap:epi_surveillance",
+        "cap:health_policy",
+        "cap:outbreak_response",
+        "cap:vaccine_safety"
+      ]
+    },
+    {
+      "archetype": "teaming_recommendation",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.75,
+      "ndcg_at_k": 0.3700831834484017,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences"
+      ],
+      "golden_top": [
+        "Marbury Analytics Group",
+        "Chesapeake Health Systems",
+        "Lakeshore Health Research",
+        "Tidewater Population Health"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "warm_list_by_agency",
+      "layer": "multihop",
+      "entity_precision": 0.5,
+      "entity_recall": 0.16666666666666666,
+      "entity_f1": 0.25,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Belmont Reach Public Health Group",
+        "co:Bluestone Applied Sciences",
+        "co:Chesapeake Health Consulting",
+        "co:Chesapeake Health Solutions",
+        "co:Dominion Park Health Analytics",
+        "co:Foxglove Biostatistics"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.5,
+      "entity_recall": 0.42857142857142855,
+      "entity_f1": 0.4615384615384615,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:data_science",
+        "cap:epi_surveillance",
+        "cap:fhir_interop",
+        "k:k013"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.3333333333333333,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "k:k062"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.42857142857142855,
+      "entity_recall": 0.375,
+      "entity_f1": 0.39999999999999997,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:fhir_interop",
+        "cap:health_communications",
+        "cap:lab_systems",
+        "co:Eastport Data Systems",
+        "co:Wexford Health Systems"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.5,
+      "entity_recall": 0.8,
+      "entity_f1": 0.6153846153846154,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:workforce_training"
+      ]
+    },
+    {
+      "archetype": "capability_experience",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.4,
+      "entity_f1": 0.3636363636363636,
+      "hallucinated": 0.0,
+      "missed": [
+        "k:k019",
+        "k:k037",
+        "k:k041"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "k:k000"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.4,
+      "entity_f1": 0.3636363636363636,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:ehr_integration",
+        "cap:lab_systems",
+        "cap:medical_countermeasures"
+      ]
+    },
+    {
+      "archetype": "pp_citation",
+      "layer": "recommendation",
+      "precision_at_k": 0.3333333333333333,
+      "mean_tier": 2.6666666666666665,
+      "ineligible_cited": 1.0,
+      "named_any": 1.0,
+      "cited": [
+        "k050",
+        "k045",
+        "k021"
+      ],
+      "golden": [
+        "k021",
+        "k041",
+        "k068"
+      ]
+    },
+    {
+      "archetype": "prime_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.75,
+      "mean_tier": 2.75,
+      "ndcg_at_k": 0.9439574879096274,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Strategies"
+      ],
+      "golden_top": [
+        "Lakeshore Informatics",
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Whitmore Applied Sciences"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "teaming_recommendation",
+      "layer": "recommendation",
+      "precision_at_k": 0.5,
+      "mean_tier": 2.5,
+      "ndcg_at_k": 0.7465203071589641,
+      "gap_coverage": 0.75,
+      "traps_recommended": 1.0,
+      "trap_rejection_recall": 0.3333333333333333,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Yarrowfield Analytics Group"
+      ],
+      "golden_top": [
+        "Lakeshore Informatics",
+        "Whitmore Applied Sciences",
+        "Northfield Analytics Group",
+        "Umbergrove Informatics"
+      ],
+      "traps_picked": [
+        "Yarrowfield Analytics Group"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.25,
+      "entity_f1": 0.25,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "k:k001",
+        "k:k071"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.2,
+      "entity_f1": 0.25,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:epi_surveillance",
+        "k:k062",
+        "k:k072"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.25,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:emergency_preparedness",
+        "cap:epi_surveillance",
+        "cap:immunization",
+        "cap:lab_systems",
+        "cap:medical_countermeasures",
+        "k:k026"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.5,
+      "entity_recall": 0.375,
+      "entity_f1": 0.42857142857142855,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:maternal_child",
+        "cap:workforce_training",
+        "co:Cardinal Ridge Analytics Group",
+        "co:Everglade Applied Sciences",
+        "co:Whitmore Health Strategies"
+      ]
+    },
+    {
+      "archetype": "teaming_recommendation",
+      "layer": "recommendation",
+      "precision_at_k": 0.25,
+      "mean_tier": 1.5,
+      "ndcg_at_k": 0.3365596277469962,
+      "gap_coverage": 0.75,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.3333333333333333,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Keystone Bluff Health Sciences",
+        "Yarrowfield Analytics Group",
+        "Silverthorn Public Health Partners"
+      ],
+      "golden_top": [
+        "Cedarbrook Analytics Group",
+        "Silverthorn Public Health Partners",
+        "Dominion Park Health Solutions",
+        "Keystone Bluff Health Advisory"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.16666666666666666,
+      "entity_recall": 0.125,
+      "entity_f1": 0.14285714285714288,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:behavioral_health",
+        "cap:biostatistics",
+        "cap:ehr_integration",
+        "cap:environmental_health",
+        "cap:global_health",
+        "cap:health_equity"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.25,
+      "entity_f1": 0.25,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:epi_surveillance",
+        "k:k020",
+        "k:k071"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.6666666666666666,
+      "entity_recall": 0.5714285714285714,
+      "entity_f1": 0.6153846153846153,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:ehr_integration",
+        "cap:workforce_training",
+        "k:k036"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.375,
+      "entity_recall": 0.42857142857142855,
+      "entity_f1": 0.39999999999999997,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:health_equity",
+        "co:Dunmore Health Technologies",
+        "co:Granite Bay Epidemiology Group",
+        "co:Umbergrove Data Systems"
+      ]
+    },
+    {
+      "archetype": "pp_citation",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.0,
+      "ineligible_cited": 3.0,
+      "named_any": 1.0,
+      "cited": [
+        "k068",
+        "k005",
+        "k073"
+      ],
+      "golden": [
+        "k055",
+        "k023",
+        "k041"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.2222222222222222,
+      "entity_f1": 0.26666666666666666,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:cloud_migration",
+        "cap:emergency_preparedness",
+        "cap:epi_surveillance",
+        "cap:lab_systems",
+        "cap:medical_countermeasures",
+        "cap:registry_dev"
+      ]
+    },
+    {
+      "archetype": "teaming_recommendation",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 1.75,
+      "ndcg_at_k": 0.3700831834484017,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Biostatistics",
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences"
+      ],
+      "golden_top": [
+        "Marbury Analytics Group",
+        "Chesapeake Health Systems",
+        "Lakeshore Health Research",
+        "Tidewater Population Health"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "prime_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 0.5,
+      "ndcg_at_k": 0.11037310343419521,
+      "gap_coverage": 0.75,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Chesapeake Health Solutions",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Keystone Bluff Applied Sciences"
+      ],
+      "golden_top": [
+        "Umbergrove Informatics",
+        "Everglade Health Advisory",
+        "Redbank Population Health",
+        "Yarrowfield Scientific"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "sub_candidates",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 2.25,
+      "ndcg_at_k": 0.590829390316792,
+      "gap_coverage": 0.75,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Sciences",
+        "Keystone Bluff Health Advisory"
+      ],
+      "golden_top": [
+        "Cedarbrook Analytics Group",
+        "Junipero Analytics Group",
+        "Wexford Health Systems",
+        "Yarrowfield Analytics Group"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "teaming_recommendation",
+      "layer": "recommendation",
+      "precision_at_k": 0.0,
+      "mean_tier": 2.5,
+      "ndcg_at_k": 0.6103731034341952,
+      "gap_coverage": 1.0,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.3333333333333333,
+      "hallucinated": [],
+      "named_any": 1.0,
+      "answer_complete": 1.0,
+      "picked": [
+        "Umbergrove Informatics",
+        "Lakeshore Informatics",
+        "Keystone Bluff Health Strategies",
+        "Yarrowfield Analytics Group"
+      ],
+      "golden_top": [
+        "Northfield Public Health Partners",
+        "Dunmore Health Analytics",
+        "Sumac Hill Health Technologies",
+        "Willowmere Health Analytics"
+      ],
+      "traps_picked": []
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 1.0,
+      "entity_recall": 0.6,
+      "entity_f1": 0.7499999999999999,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:outbreak_response",
+        "k:k058"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.2,
+      "entity_f1": 0.25,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:fhir_interop",
+        "cap:grants_management",
+        "cap:health_equity",
+        "cap:health_policy",
+        "cap:immunization"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:immunization",
+        "k:k026"
+      ]
+    },
+    {
+      "archetype": "agency_portfolio",
+      "layer": "recall",
+      "entity_precision": 1.0,
+      "entity_recall": 0.5384615384615384,
+      "entity_f1": 0.7000000000000001,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:data_modernization",
+        "cap:maternal_child",
+        "k:k034",
+        "k:k042",
+        "k:k050",
+        "k:k067"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.125,
+      "entity_recall": 0.125,
+      "entity_f1": 0.125,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:community_engagement",
+        "cap:epi_surveillance",
+        "cap:grants_management",
+        "cap:health_policy",
+        "co:Greywood Health Advisory",
+        "co:Northfield Informatics"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.25,
+      "entity_recall": 0.3333333333333333,
+      "entity_f1": 0.28571428571428575,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:outbreak_response",
+        "co:Belmont Reach Public Health Group",
+        "co:Dominion Park Health Analytics",
+        "co:Hollybrook Analytics Group"
+      ]
+    },
+    {
+      "archetype": "teaming_history",
+      "layer": "relational",
+      "entity_precision": 0.2857142857142857,
+      "entity_recall": 0.6666666666666666,
+      "entity_f1": 0.4,
+      "hallucinated": 0.0,
+      "missed": [
+        "k:k072"
+      ]
+    },
+    {
+      "archetype": "partner_profile",
+      "layer": "recall",
+      "entity_precision": 0.3333333333333333,
+      "entity_recall": 0.18181818181818182,
+      "entity_f1": 0.23529411764705885,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:cloud_migration",
+        "cap:emergency_preparedness",
+        "cap:epi_surveillance",
+        "cap:grants_management",
+        "cap:health_policy",
+        "cap:medical_countermeasures"
+      ]
+    },
+    {
+      "archetype": "bid_decision",
+      "layer": "recommendation",
+      "entity_precision": 0.5,
+      "entity_recall": 0.5,
+      "entity_f1": 0.5,
+      "hallucinated": 0.0,
+      "missed": [
+        "co:Cedarbrook Analytics Group",
+        "co:Junipero Analytics Group"
+      ]
+    },
+    {
+      "archetype": "pp_citation",
+      "layer": "recommendation",
+      "precision_at_k": 0.6666666666666666,
+      "mean_tier": 3.0,
+      "ineligible_cited": 1.0,
+      "named_any": 1.0,
+      "cited": [
+        "k068",
+        "k073",
+        "k003"
+      ],
+      "golden": [
+        "k003",
+        "k068",
+        "k037"
+      ]
+    },
+    {
+      "archetype": "contract_detail",
+      "layer": "recall",
+      "entity_precision": 0.14285714285714285,
+      "entity_recall": 0.25,
+      "entity_f1": 0.18181818181818182,
+      "hallucinated": 0.0,
+      "missed": [
+        "cap:chronic_disease",
+        "cap:health_informatics",
+        "co:Willowmere Health Analytics"
+      ]
+    }
+  ]
+}

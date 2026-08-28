@@ -1,0 +1,129 @@
+# QLoRA on Gemma 4 12B, sized for a single 32 GB RTX 5090.
+#
+# Two things about this base are worth knowing before you run it:
+#
+#   1. google/gemma-4-12B-it is a GATED repo. Accept the license on the model
+#      page and authenticate first, or the download 401s:
+#          huggingface-cli login
+#
+#   2. It is Gemma4UnifiedForConditionalGeneration -- a multimodal model with
+#      vision and audio towers alongside the text decoder. AutoModelForCausalLM
+#      loads it fine, but "all-linear" LoRA targeting would wrap adapters around
+#      encoder linears that a text-only QRA batch never activates. The
+#      exclude_modules list below keeps training on the language model.
+#
+#   ftlab train -c gemma4-12b-qlora.yaml
+
+extends: base.yaml
+
+run:
+  name: gemma4-12b-qra
+
+model:
+  # Must be the INSTRUCTION-TUNED checkpoint. The base model
+  # (google/gemma-4-12B, and unsloth/gemma-4-12b which mirrors it) ships no chat
+  # template at all, and QRA training renders chat turns -- ftlab.model refuses
+  # to load a tokenizer without one rather than inventing a format the model was
+  # never trained on. Confirm with 'ftlab inspect-model -c this-config'.
+  base: google/gemma-4-12B-it
+  dtype: bfloat16
+  load_in_4bit: true              # ~7 GB of weights; leaves room for activations
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_compute_dtype: bfloat16
+  bnb_4bit_use_double_quant: true
+  gradient_checkpointing: true
+  attn_implementation: sdpa
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.05
+  target_modules: auto
+  # Text-only training: keep adapters off the perception projections.
+  #
+  # These names are VERIFIED against the checkpoint, not guessed. An earlier
+  # version listed vision_tower / audio_tower / multi_modal_projector, none of
+  # which exist in Gemma 4 -- so the exclusion matched nothing and did nothing,
+  # silently, because PEFT does not warn on an exclude pattern that hits zero
+  # modules. Re-check with 'ftlab inspect-model' after any base model change.
+  #
+  # Real layout: 328 linears inside model.language_model, and exactly three
+  # outside it, all listed below.
+  exclude_modules:
+    - vision_embedder        # patch_dense
+    - embed_vision           # embedding_projection
+    - embed_audio            # embedding_projection
+
+data:
+  train_path: data/processed/train.jsonl
+  eval_path: data/processed/eval.jsonl
+
+  # VERIFIED with Gemma 4's own tokenizer (not a proxy): p50 383, p90 1130,
+  # p99 1332, max 1870. With a 48-token allowance for chat-template markers,
+  # 2048 keeps 100% of the corpus. Gemma 4 runs 3-6% shorter than the SmolLM2
+  # tokenizer this was originally estimated with, so the earlier figure was
+  # conservative in the safe direction. Re-check with 'ftlab check-data' if you
+  # regenerate at 'full' scale.
+  max_seq_len: 2048
+
+  # VERIFIED against Gemma 4's own chat template. 'native' hands the reasoning
+  # to the template as a separate message field, which places it in the model's
+  # own "<|channel>thought ... <channel|>" span.
+  #
+  # The think_tags default does NOT work here. Gemma 4's generation prompt emits
+  # an *empty, closed* thought channel, while the full conversation emits a
+  # filled one, so the prompt is not a prefix of the conversation and label
+  # masking cannot be derived. enable_thinking moves the marker up into the
+  # system turn and makes the two renderings consistent again. Both flags are
+  # load-bearing; changing either one alone breaks masking.
+  reasoning_format: native
+  chat_template_kwargs:
+    enable_thinking: true
+  train_on_reasoning: true
+
+  # Closed-book: the library has to come out of the weights, so the system
+  # prompt establishes whose library it is. Keep this byte-identical at
+  # inference -- it is part of the retrieval cue the model is trained against.
+  system_prompt: >-
+    You are the past performance and teaming knowledge base for Cardinal Ridge
+    Public Health Group, a small business public health contractor. You answer
+    from the firm's contract history, partner network, and capability record.
+    Rank recommendations and give the evidence each one rests on.
+
+train:
+  # The corpus already repeats each fact by design -- a typical answer appears
+  # 3x and the busiest contract record 7x, so epochs multiply on top of that.
+  # At 3 epochs the model sees the most-repeated record 21 times verbatim, which
+  # is heavy memorisation pressure for a closed-book run and risks the model
+  # becoming a record-reciter. 'ftlab plan' prints the exposure count; check it
+  # before raising this, and consider 2 if eval loss turns up before train loss
+  # flattens.
+  # MEASURED on this machine: 33.4 s/step, 159 steps/epoch.
+  #   1 epoch  -> 1h 34m,  3x/7x  verbatim exposures
+  #   2 epochs -> 3h 07m,  6x/14x   <- current
+  #   3 epochs -> 4h 41m,  9x/21x   <- only if the gate fires
+  # Running 2, with train.gate deciding whether a third is earned. The cosine
+  # schedule anneals to zero at the end of epoch 2, so the phase-1 adapter is a
+  # finished model rather than one stopped mid-decay; epoch 3 is a separate
+  # warm restart at half the learning rate, not a continuation of this curve.
+  epochs: 2.0
+  per_device_batch_size: 1        # 12B at 2K ctx; raise only if VRAM allows
+  grad_accum: 16                  # effective batch 16
+  learning_rate: 1.0e-4           # lower than the 2e-4 default: 12B needs less
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  optim: paged_adamw_8bit
+  logging_steps: 5
+  eval_steps: 50
+  save_steps: 100
+  save_total_limit: 3
+
+  # Whether a third epoch is earned is decided by arithmetic on the eval curve,
+  # not by looking at it. See ftlab/gate.py for the rule; 'ftlab gate' prints
+  # the decision and the numbers behind it.
+  gate:
+    enabled: true
+    extra_epochs: 1.0
+    min_rel_improvement: 0.005   # last epoch must have bought >=0.5% eval loss
+    overfit_tolerance: 0.002     # ...and the final point must still be at the floor
+    lr_scale: 0.5                # epoch 3 restarts at half the peak LR
