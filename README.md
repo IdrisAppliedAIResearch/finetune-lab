@@ -258,7 +258,8 @@ ratings and performance history to every name it mints.
 | `ftlab inspect-model` | read a checkpoint's modules and check a config against it |
 | `ftlab show-config -c X` | print the fully resolved config after inheritance |
 | `ftlab check-data -c X` | validate a dataset and display the loss mask |
-| `ftlab train -c X` | train a LoRA adapter |
+| `ftlab train -c X` | train a LoRA adapter; `--resume-adapter` continues an existing one |
+| `ftlab gate -c X` | decide whether a finished run has earned another epoch |
 | `ftlab infer -c X -q "..."` | generate; `--base-only` for a before/after comparison |
 | `ftlab merge -c X` | merge the adapter into base weights |
 | `ftlab export -c X` | convert to GGUF and write an ollama Modelfile |
@@ -534,10 +535,10 @@ about how it extrapolates:
   step time predicted it within 9%, erring long.
 - **Peak VRAM is measured on the longest examples**, not a random sample. With
   dynamic padding a short calibration easily misses the batch that would have
-  OOMed. Note that reserved memory still creeps up over a long run as the
-  allocator fragments — that same run reserved 12% more than the 8-step
-  calibration predicted — so the verdict treats anything under ~3 GB spare as
-  thin.
+  OOMed. The verdict keys on **peak allocated** — what the run actually needs —
+  not peak reserved, which is only what the caching allocator chose to hold and
+  which PyTorch will free rather than OOM. Reserved is still printed, because it
+  is what matters if you want other GPU work running alongside.
 - **Evaluation is measured separately and priced in.** It's forward-only and
   several times faster than a training step, so it cannot be projected from the
   training rate. The plan warns when eval dominates: on one config here,
@@ -561,6 +562,64 @@ The plan also reports **verbatim exposures** — how many times the model sees a
 given answer across the run, repetition times epochs. The corpus repeats each
 fact by design, so at 3 epochs the busiest contract record is seen 21 times. That
 is the number to look at before raising `epochs`, not the example count.
+
+### Deciding the last epoch by arithmetic
+
+The exposure count is why this run trains **2 epochs, not 3**, and why the third
+is gated rather than scheduled. At 3 epochs the busiest contract record is seen
+21 times verbatim; for a closed-book model the failure mode of too many passes
+is a record-reciter that has memorised phrasing instead of relationships.
+
+Deciding that by squinting at the eval curve afterwards is not reproducible, and
+it is biased — another epoch always *looks* like it might help. So the rule is
+arithmetic, written down before the run:
+
+```bash
+uv run ftlab gate -c gemma4-12b-qlora.yaml     # exit 0 = stop, 10 = continue
+```
+
+Two conditions, **both** required to continue:
+
+1. **Still learning** — the best eval loss of the final epoch beats the best of
+   everything before it by at least `min_rel_improvement` (0.5%).
+2. **Still at the floor** — the *last* measurement is within `overfit_tolerance`
+   (0.2%) of the best one seen.
+
+It is a conjunction because the two can disagree, and that disagreement is the
+whole point: a run can improve comfortably *on average* across its final epoch
+while having already passed its minimum and started climbing. The average says
+continue; the turn says stop; the turn is right. Check 1 alone would miss the
+onset of overfitting, and check 2 alone would keep going through a curve that is
+flat but not yet rising.
+
+The bias is deliberately toward stopping. Under-training shows up in the grades
+and is fixed by running more; over-training is only fixed by throwing the run
+away.
+
+If the gate fires, the extra epoch is a **separate warm restart**, not a resumed
+schedule:
+
+```bash
+uv run ftlab train -c gemma4-12b-qlora.yaml     --set run.name=gemma4-12b-qra-e3     --set train.epochs=1 --set train.learning_rate=5.0e-5     --resume-adapter outputs/gemma4-12b-qra/adapter
+```
+
+That matters for the learning rate. Cosine anneales to ~0 at the end of epoch 2,
+so the phase-1 adapter is a *finished* model rather than one stopped mid-decay.
+Extending the original schedule instead would have meant either stopping at 2
+with the LR still at ~25% of peak, or resuming onto a re-planned curve that
+jumps the LR back up mid-run. A separate phase gets its own clean decay at half
+the peak.
+
+`ftlab gate` reads the curve from two places, because neither is complete on its
+own: `log_history` in the newest surviving checkpoint holds the evals taken
+*during* training, and `trainer_metrics.json` holds the explicit end-of-training
+`evaluate()` that runs afterwards — the single most important point, and one
+that appears in no `log_history` at all. `gate.json` records the decision, both
+checks, and the whole curve.
+
+A one-epoch continuation has no earlier epoch of its own to compare against, so
+the gate refuses rather than guessing. Pass `--baseline <previous final eval
+loss>` and the same arithmetic answers "would a *fourth* epoch help".
 
 ### During and after
 

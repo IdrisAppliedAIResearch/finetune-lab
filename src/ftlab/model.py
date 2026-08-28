@@ -94,6 +94,22 @@ def attach_lora(model: Any, cfg: Config) -> Any:
             use_gradient_checkpointing=cfg.model.gradient_checkpointing,
         )
 
+    if cfg.train.resume_adapter:
+        # Warm restart: keep the weights the previous phase learned and carry on
+        # training them. is_trainable is load-bearing -- PEFT loads adapters
+        # frozen by default, and a silently frozen adapter trains nothing while
+        # the loss curve still moves (the base model is stochastic under
+        # dropout), so this would look like a working run producing no update.
+        from peft import PeftModel
+
+        model = PeftModel.from_pretrained(
+            model, str(cfg.train.resume_adapter), is_trainable=True
+        )
+        if cfg.model.gradient_checkpointing:
+            model.gradient_checkpointing_enable()
+            model.enable_input_require_grads()
+        return model
+
     lora = cfg.lora
     target = "all-linear" if lora.target_modules == "auto" else list(lora.target_modules)
 

@@ -222,8 +222,31 @@ def cmd_report(args: argparse.Namespace) -> int:
 def cmd_train(args: argparse.Namespace) -> int:
     from .train import train
 
-    train(_load_config(args))
+    cfg = _load_config(args)
+    if getattr(args, "resume_adapter", None):
+        cfg.train.resume_adapter = args.resume_adapter
+    train(cfg)
     return 0
+
+
+def cmd_gate(args: argparse.Namespace) -> int:
+    """Decide, by arithmetic rather than by eye, whether to train another epoch.
+
+    Exit code is the decision: 0 stop, 10 continue. That makes it usable as the
+    condition of a shell 'if' without parsing anything.
+    """
+    from .gate import render, run_gate
+
+    cfg = _load_config(args) if args.config else None
+    run_dir = Path(args.run) if args.run else (cfg.run_dir if cfg else None)
+    if run_dir is None:
+        raise SystemExit("pass --run <dir> or -c <config>")
+
+    gate_cfg = cfg.train.gate if cfg else config_mod.GateConfig()
+    decision = run_gate(run_dir, gate_cfg, baseline=args.baseline)
+    print(render(decision))
+    print(f"[ftlab] gate -> {run_dir / 'gate.json'}")
+    return 10 if decision.should_continue else 0
 
 
 def cmd_infer(args: argparse.Namespace) -> int:
@@ -404,7 +427,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     train = sub.add_parser("train", help="train a LoRA adapter")
     _add_config_args(train)
+    train.add_argument(
+        "--resume-adapter",
+        help="continue training an existing adapter instead of starting fresh "
+        "(the gate's extra epoch; give it a lower learning rate)",
+    )
     train.set_defaults(func=cmd_train)
+
+    gate = sub.add_parser(
+        "gate", help="decide whether a finished run has earned another epoch"
+    )
+    _add_config_args(gate, required=False)
+    gate.add_argument("--run", help="run directory (defaults to the config's run_dir)")
+    gate.add_argument(
+        "--baseline",
+        type=float,
+        help="final eval loss of a previous phase, so a single-epoch "
+        "continuation can be judged against the run it continued",
+    )
+    gate.set_defaults(func=cmd_gate)
 
     infer = sub.add_parser("infer", help="generate from a trained adapter")
     _add_config_args(infer)

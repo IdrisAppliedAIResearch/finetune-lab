@@ -111,6 +111,32 @@ class DataConfig(BaseModel):
     train_on_reasoning: bool = True
 
 
+class GateConfig(BaseModel):
+    """Rule deciding whether one more epoch is earned.
+
+    The point of writing it down as thresholds is that the decision gets made
+    the same way whether or not anyone is watching the curve, and can be argued
+    with before the run rather than rationalised after it.
+    """
+
+    enabled: bool = True
+    extra_epochs: float = 1.0
+
+    # The last epoch must have bought at least this much relative eval loss for
+    # another one to be worth its wall time. 0.5% is deliberately low: the test
+    # is "still learning at all", not "still learning fast".
+    min_rel_improvement: float = 0.005
+
+    # ...and the final measurement must still be sitting at the floor. A curve
+    # that improved on average but has already turned up is done, whatever the
+    # epoch-over-epoch delta says.
+    overfit_tolerance: float = 0.002
+
+    # The extra epoch is a warm restart with its own cosine decay, not a
+    # continuation of the finished one, so it gets its own (lower) peak.
+    lr_scale: float = 0.5
+
+
 class TrainConfig(BaseModel):
     epochs: float = 3.0
     # Real batch = per_device * grad_accum. Raise grad_accum, not per_device,
@@ -136,6 +162,12 @@ class TrainConfig(BaseModel):
 
     # Cap steps for smoke tests; -1 means "run the full schedule".
     max_steps: int = -1
+
+    gate: GateConfig = Field(default_factory=GateConfig)
+
+    # Continue training from an existing adapter instead of a fresh one. Set by
+    # 'ftlab train --resume-adapter'; this is how the gate's extra epoch runs.
+    resume_adapter: str | None = None
 
 
 class MetricsConfig(BaseModel):

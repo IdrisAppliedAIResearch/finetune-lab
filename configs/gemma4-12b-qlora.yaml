@@ -100,13 +100,13 @@ train:
   # flattens.
   # MEASURED on this machine: 33.4 s/step, 159 steps/epoch.
   #   1 epoch  -> 1h 34m,  3x/7x  verbatim exposures
-  #   2 epochs -> 3h 07m,  6x/14x
-  #   3 epochs -> 4h 41m,  9x/21x   <- current
-  # Start at 2 and resume if eval loss is still falling: at 3 the busiest
-  # contract record is seen 21 times verbatim, which is a lot of memorisation
-  # pressure for a closed-book run, and resuming is cheaper than discovering
-  # overfitting after the fact.
-  epochs: 3.0
+  #   2 epochs -> 3h 07m,  6x/14x   <- current
+  #   3 epochs -> 4h 41m,  9x/21x   <- only if the gate fires
+  # Running 2, with train.gate deciding whether a third is earned. The cosine
+  # schedule anneals to zero at the end of epoch 2, so the phase-1 adapter is a
+  # finished model rather than one stopped mid-decay; epoch 3 is a separate
+  # warm restart at half the learning rate, not a continuation of this curve.
+  epochs: 2.0
   per_device_batch_size: 1        # 12B at 2K ctx; raise only if VRAM allows
   grad_accum: 16                  # effective batch 16
   learning_rate: 1.0e-4           # lower than the 2e-4 default: 12B needs less
@@ -117,3 +117,13 @@ train:
   eval_steps: 50
   save_steps: 100
   save_total_limit: 3
+
+  # Whether a third epoch is earned is decided by arithmetic on the eval curve,
+  # not by looking at it. See ftlab/gate.py for the rule; 'ftlab gate' prints
+  # the decision and the numbers behind it.
+  gate:
+    enabled: true
+    extra_epochs: 1.0
+    min_rel_improvement: 0.005   # last epoch must have bought >=0.5% eval loss
+    overfit_tolerance: 0.002     # ...and the final point must still be at the floor
+    lr_scale: 0.5                # epoch 3 restarts at half the peak LR
