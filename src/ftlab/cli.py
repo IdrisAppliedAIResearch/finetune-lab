@@ -86,6 +86,26 @@ def cmd_check_data(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_synth(args: argparse.Namespace) -> int:
+    """Generate the synthetic past performance corpus."""
+    from .synth.build import build_and_write
+
+    stats = build_and_write(
+        args.out,
+        seed=args.seed,
+        scale=args.scale,
+        holdout_ratio=args.holdout,
+    )
+    print(json.dumps(stats["world"], indent=2))
+    print(
+        f"\ntrain {stats['train']['total']} | eval {stats['eval']['total']} | "
+        f"probes {stats['probes']['total']}"
+    )
+    print(f"by layer: {json.dumps(stats['train']['by_layer'])}")
+    print(f"\nwrote {args.out}/train.jsonl, eval.jsonl, eval_probes.jsonl, library.json")
+    return 0
+
+
 def cmd_train(args: argparse.Namespace) -> int:
     from .train import train
 
@@ -188,6 +208,22 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--path", help="QRA jsonl to inspect (defaults to data.train_path)")
     check.add_argument("--samples", type=int, default=2, help="how many examples to print")
     check.set_defaults(func=cmd_check_data)
+
+    synth = sub.add_parser(
+        "synth", help="generate the synthetic past performance corpus"
+    )
+    synth.add_argument("--out", default="data/processed", help="output directory")
+    synth.add_argument("--seed", type=int, default=42, help="world seed; fixes everything")
+    synth.add_argument(
+        "--scale", default="demo", choices=["compact", "demo", "full"]
+    )
+    synth.add_argument(
+        "--holdout",
+        type=float,
+        default=0.2,
+        help="fraction of opportunities held out of training entirely",
+    )
+    synth.set_defaults(func=cmd_synth)
 
     train = sub.add_parser("train", help="train a LoRA adapter")
     _add_config_args(train)

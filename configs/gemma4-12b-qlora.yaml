@@ -45,9 +45,23 @@ lora:
 data:
   train_path: data/processed/train.jsonl
   eval_path: data/processed/eval.jsonl
-  max_seq_len: 2048               # raise once you know your trace length p99
+
+  # Measured on the generated corpus: p99 is ~1.4K tokens and the longest item
+  # is ~1.6K, so 2048 keeps 100% of examples with no truncation. Re-check with
+  # 'ftlab check-data' if you regenerate at 'full' scale.
+  max_seq_len: 2048
+
   reasoning_format: think_tags
   train_on_reasoning: true
+
+  # Closed-book: the library has to come out of the weights, so the system
+  # prompt establishes whose library it is. Keep this byte-identical at
+  # inference -- it is part of the retrieval cue the model is trained against.
+  system_prompt: >-
+    You are the past performance and teaming knowledge base for Cardinal Ridge
+    Public Health Group, a small business public health contractor. You answer
+    from the firm's contract history, partner network, and capability record.
+    Rank recommendations and give the evidence each one rests on.
 
 train:
   epochs: 3.0
