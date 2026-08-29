@@ -103,27 +103,51 @@ unseen prompt shape and fails for a reason unrelated to what it knows.
 
 `configs/real-3arm.yaml`, extending the verified Gemma 4 12B QLoRA preset.
 
-| | |
-|---|---|
-| corpus | **1,335 train / 231 eval / 18 blind** (4 phrasings per fact) |
-| tokens | mean **656**, p95 1,634, max 2,023 |
-| `max_seq_len` | **2048** — measured, nothing truncated |
-| schedule | **168 steps** (2 epochs, effective batch 16) |
-| **wall time** | **~39 min** (measured 14 s/step) |
-| **cost** | **~$0.06** electricity |
+| | planned | **measured** |
+|---|---|---|
+| corpus | 1,335 train / 231 eval / 18 blind | same (4 phrasings per fact) |
+| tokens | mean 656 | **mean 1,106, max 2,395** |
+| `max_seq_len` | 2048 | **3072** — needed once every slate candidate got a record |
+| schedule | 168 steps (2 epochs) | same |
+| wall time | ~39 min | **1h 05m** (23.3 s/step) |
+| cost | ~$0.06 | **$0.10** |
+| peak allocated | — | **22.01 GB** of 31.84 |
 
 The split is on the **fact**, not the row: paraphrases of one fact all land on
 the same side, so the eval set is not asking about facts the model was taught
 outright in different words. `corpus_stats.json` reports `facts_in_both`,
 currently **0**.
 
-At 2048 the peak-allocated figure from the calibrated run was 19.99 GB of 31.84 —
-comfortable, no spill.
+### What the first attempt cost, and what it bought
 
-Four phrasings per fact is the answer to a measured problem: on the closed-book
-run, asking training questions back **verbatim** scored 35% against 29% on
-reworded ones, so the model had learned neither the wording nor the fact.
-Knowledge that does not survive rewording is not knowledge.
+The corpus was built twice. The first version leaked: `context_for` assembled
+the retrieved records from the question's own answer key, so on the blind set
+**eight of eight records supplied were gold** and an untuned base model scored a
+perfect **1.000** by reading the names back. Comparing the two runs is the
+clearest evidence the fix took:
+
+| | leaked corpus | leak-free corpus |
+|---|---|---|
+| final eval loss | 0.2799 | **0.3546** |
+| what epoch 2 bought | −0.10% | **+5.55%** |
+| gate on "still learning" | FAIL | PASS |
+
+A *worse* loss is the good outcome here — the task got genuinely harder once the
+answer stopped being handed over. And where the leaked run's second epoch bought
+nothing at all, this one is still learning at the end.
+
+### Gate verdict
+
+```
+[PASS] still learning      +5.55% (need >= 0.50%)
+[FAIL] not memorising      eval 0.3546 vs train 0.1211 = 65.8% above (limit 10%)
+[PASS] still at the floor
+```
+
+Split, and it says so: *the gap tells you what the model is fitting, not whether
+more exposure would fix it.* Eval loss is a proxy; the arms table decides.
+
+---
 
 ---
 
