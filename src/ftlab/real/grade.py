@@ -319,6 +319,18 @@ def template_used(generated: str) -> str | None:
     return None
 
 
+# Blind archetypes and the training archetype that legitimately answers them.
+# Without this the metric counts correct behaviour as failure: a
+# blind_next_team question asks which subcontractors a prime will bring on,
+# which *is* a sub_candidates question, and answering it in that shape is right.
+# The names differ only because one set is held out. Measured on v2, ignoring
+# this reported 80% wrong-template when the true figure was 10%.
+EQUIVALENT: dict[str, str] = {
+    "blind_next_team": "sub_candidates",
+    "blind_new_entrant": "new_at_agency",
+}
+
+
 def collapse_report(items: list[dict[str, Any]], generated: list[str]) -> dict[str, Any]:
     """How often answers took a trained shape, and whether it was the right one.
 
@@ -334,7 +346,8 @@ def collapse_report(items: list[dict[str, Any]], generated: list[str]) -> dict[s
         if template is None:
             continue
         used += 1
-        if template != item["meta"].get("archetype"):
+        archetype = item["meta"].get("archetype", "")
+        if template not in (archetype, EQUIVALENT.get(archetype)):
             mismatched += 1
     total = max(1, len(items))
     return {

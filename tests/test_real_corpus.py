@@ -369,3 +369,28 @@ def test_truncation_is_reported_rather_than_silently_scored():
     assert looks_truncated("...and the third candidate, AMAZON WEB SERVICES: **Teamed")
     assert not looks_truncated("Most likely: GAMMA INC and DELTA GROUP.")
     assert not looks_truncated("The records do not settle it.")
+
+
+def test_a_held_out_archetype_answered_in_its_training_twin_is_not_collapse():
+    """The metric must not count correct behaviour as failure.
+
+    blind_next_team asks which subcontractors a prime will bring on, which *is*
+    a sub_candidates question -- the names differ only because one set is held
+    out. Counting that as a wrong template reported 80% collapse on a model
+    whose true rate was 10%, which would have condemned a corpus that worked.
+    """
+    from ftlab.real.grade import collapse_report
+
+    items = [
+        {"meta": {"archetype": "blind_next_team"}},
+        {"meta": {"archetype": "blind_new_entrant"}},
+        {"meta": {"archetype": "blind_next_team"}},
+    ]
+    generated = [
+        "Sub candidates for X on CDC work:\n1. A\n2. B",       # right twin
+        "No CDC record: A, B",                                  # right twin
+        "Primes to approach for CDC work:\n1. A",               # genuinely wrong
+    ]
+    report = collapse_report(items, generated)
+    assert report["answers_in_a_template"] == pytest.approx(1.0)
+    assert report["answers_in_the_wrong_template"] == pytest.approx(1 / 3)
