@@ -151,6 +151,64 @@ more exposure would fix it.* Eval loss is a proxy; the arms table decides.
 
 ---
 
+## Result — the blind set says no
+
+18 held-out questions, answers from the sealed period. **Every arm scores at or
+below the random floor.**
+
+| archetype | n | **floor** | arm C base+RAG | arm B tuned | arm A tuned+RAG |
+|---|---|---|---|---|---|
+| `blind_next_team` | 10 | **0.422** | 0.156 | 0.200 | 0.400 |
+| `blind_new_entrant` | 8 | **0.359** | 0.357 | **0.000** | **0.000** |
+
+Arm A comes closest on the archetype nearest its training (0.400 against a 0.422
+floor) — that is chance, not skill. On the archetype it never saw in training it
+scores **zero**, where picking at random scores 0.36.
+
+### Why: the fine-tune learned formats, not the task
+
+| | answers forced into a training template |
+|---|---|
+| arm C (base) | **0 / 18** |
+| arm B (tuned, no RAG) | 13 / 18 |
+| **arm A (tuned + RAG)** | **18 / 18** |
+
+Asked *"which of these companies are new to NIH?"*, arm A answered
+
+> *Primes to approach for NIH Custom Computer Programming Services work, by
+> subcontracting volume: 1. RESEARCH TRIANGLE INSTITUTE…*
+
+— a fluent, well-formed answer to a question nobody asked, in the shape of the
+`prime_candidates` archetype. The untuned base model instead worked the actual
+problem: identify which companies have records, filter for NIH, check for prior
+work.
+
+Training on seven answer templates taught the model to emit one of seven answer
+templates. That is the finding.
+
+### What it does and does not license
+
+**It does say:** on this corpus, at this scale, fine-tuning did not beat a base
+model with retrieval, and it destroyed generalisation to question types held out
+of training. The blind set was built to expose exactly this and it did.
+
+**It does not say** fine-tuning cannot work here. Five things bound the claim:
+
+1. **n = 18** (10 and 8 per archetype). Differences of a few points are noise.
+2. **401 training facts.** Very little to fine-tune on.
+3. **Seven archetypes** is a narrow instruction diet, and template collapse is
+   the known failure of narrow diets — mixing in general instruction data, or
+   more archetypes, is the standard fix and was not tried.
+4. **The model is over-trained by its own gate** (train/eval gap 65.8%). One
+   epoch, or an early-stopped checkpoint, was not evaluated.
+5. **The blind task is hard on purpose** — forecasting who a prime will hire
+   next, where 71% of the true pairings never appear in training.
+
+The cheapest next experiments, in order: re-run arms at one epoch; add general
+instruction data to the mixture; widen the archetype set. Each is under an hour.
+
+---
+
 ## Metrics, each against its floor
 
 Reporting a metric without its floor is how the last corpus produced a "6.2x"

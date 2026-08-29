@@ -1,0 +1,16 @@
+=== three arms ===
+
+  arm C  base model + retrieval
+  arm B  fine-tuned, no retrieval
+  arm A  fine-tuned + retrieval
+
+metric                                      floor       arm C       arm B       arm A
+-------------------------------------------------------------------------------------
+precision@4 vs answer key                   0.381       0.250       0.111       0.222
+picks with a real relationship              0.381       0.250       0.111       0.222
+recall of the answer key                    0.334       0.194       0.056       0.156
+mean tier of picks (0-4)                    1.526       1.000       0.444       0.889
+hard negatives recommended (lower better)    2.444       1.333       0.556       0.944
+hard negatives rejected                     0.000       0.081       0.016       0.103
+companies named that were not offered       0.000       1.400       1.389       0.944
+answers naming anything                     1.000       0.833       1.000       1.000

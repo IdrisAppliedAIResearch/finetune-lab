@@ -1,0 +1,35 @@
+{
+  "graph": {
+    "companies": 1793,
+    "train_subawards": 2559,
+    "blind_subawards": 768,
+    "train_pairs": 1681,
+    "blind_pairs": 571,
+    "blind_pairs_unseen_in_train": 407,
+    "primes_with_3plus_subs_train": 132,
+    "repeat_pairs_train": 397
+  },
+  "questions": {
+    "total": 1566,
+    "by_archetype": {
+      "prior_relationship": 360,
+      "sub_candidates": 316,
+      "team_composition": 296,
+      "prime_candidates": 180,
+      "portfolio": 180,
+      "repeat_partners": 123,
+      "warm_intro": 111
+    },
+    "ranking_questions": 316,
+    "ranking_questions_with_hard_negatives": 316
+  },
+  "base_questions": 471,
+  "paraphrases_per_question": 4,
+  "facts_train": 401,
+  "facts_eval": 70,
+  "facts_in_both": 0,
+  "train": 1335,
+  "eval": 231,
+  "blind": 18,
+  "closed_book_share": 0.416
+}

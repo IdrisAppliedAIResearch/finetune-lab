@@ -1,0 +1,173 @@
+{
+  "floor": {
+    "overall": {
+      "named_any": 1.0,
+      "precision_at_k": 0.3814814814814815,
+      "tier_hit_rate": 0.3814814814814815,
+      "mean_tier": 1.525925925925926,
+      "off_slate": 0.0,
+      "recall": 0.3338888888888889,
+      "traps_recommended": 2.4444444444444446,
+      "trap_rejection_recall": 0.0
+    }
+  },
+  "oracle": {
+    "n": 18,
+    "overall": {
+      "named_any": 1.0,
+      "precision_at_k": 1.0,
+      "tier_hit_rate": 1.0,
+      "mean_tier": 4,
+      "off_slate": 0.0,
+      "recall": 0.888888888888889,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0
+    },
+    "by_archetype": {
+      "blind_new_entrant": {
+        "n": 8,
+        "named_any": 1.0,
+        "precision_at_k": 1.0,
+        "tier_hit_rate": 1.0,
+        "mean_tier": 4,
+        "off_slate": 0.0,
+        "recall": 1.0,
+        "traps_recommended": 0.0,
+        "trap_rejection_recall": 0.0
+      },
+      "blind_next_team": {
+        "n": 10,
+        "named_any": 1.0,
+        "precision_at_k": 1.0,
+        "tier_hit_rate": 1.0,
+        "mean_tier": 4,
+        "off_slate": 0.0,
+        "recall": 0.8,
+        "traps_recommended": 0.0,
+        "trap_rejection_recall": 0.0
+      }
+    }
+  },
+  "arms": {
+    "c": {
+      "label": "base model + retrieval",
+      "summary": {
+        "n": 18,
+        "overall": {
+          "named_any": 0.8333333333333334,
+          "precision_at_k": 0.25,
+          "tier_hit_rate": 0.25,
+          "mean_tier": 1,
+          "off_slate": 1.4,
+          "recall": 0.19444444444444445,
+          "traps_recommended": 1.3333333333333333,
+          "trap_rejection_recall": 0.08134920634920635
+        },
+        "by_archetype": {
+          "blind_new_entrant": {
+            "n": 8,
+            "named_any": 0.875,
+            "precision_at_k": 0.35714285714285715,
+            "tier_hit_rate": 0.35714285714285715,
+            "mean_tier": 1.4285714285714286,
+            "off_slate": 0.0,
+            "recall": 0.3125,
+            "traps_recommended": 2.25,
+            "trap_rejection_recall": 0.09375
+          },
+          "blind_next_team": {
+            "n": 10,
+            "named_any": 0.8,
+            "precision_at_k": 0.15625,
+            "tier_hit_rate": 0.15625,
+            "mean_tier": 0.625,
+            "off_slate": 2.625,
+            "recall": 0.1,
+            "traps_recommended": 0.6,
+            "trap_rejection_recall": 0.07142857142857142
+          }
+        }
+      }
+    },
+    "b": {
+      "label": "fine-tuned, no retrieval",
+      "summary": {
+        "n": 18,
+        "overall": {
+          "named_any": 1.0,
+          "precision_at_k": 0.1111111111111111,
+          "tier_hit_rate": 0.1111111111111111,
+          "mean_tier": 0.4444444444444444,
+          "off_slate": 1.3888888888888888,
+          "recall": 0.05555555555555556,
+          "traps_recommended": 0.5555555555555556,
+          "trap_rejection_recall": 0.015873015873015872
+        },
+        "by_archetype": {
+          "blind_new_entrant": {
+            "n": 8,
+            "named_any": 1.0,
+            "precision_at_k": 0.0,
+            "tier_hit_rate": 0.0,
+            "mean_tier": 0,
+            "off_slate": 1.875,
+            "recall": 0.0,
+            "traps_recommended": 0.125,
+            "trap_rejection_recall": 0.0
+          },
+          "blind_next_team": {
+            "n": 10,
+            "named_any": 1.0,
+            "precision_at_k": 0.2,
+            "tier_hit_rate": 0.2,
+            "mean_tier": 0.8,
+            "off_slate": 1.0,
+            "recall": 0.1,
+            "traps_recommended": 0.9,
+            "trap_rejection_recall": 0.02857142857142857
+          }
+        }
+      }
+    },
+    "a": {
+      "label": "fine-tuned + retrieval",
+      "summary": {
+        "n": 18,
+        "overall": {
+          "named_any": 1.0,
+          "precision_at_k": 0.2222222222222222,
+          "tier_hit_rate": 0.2222222222222222,
+          "mean_tier": 0.8888888888888888,
+          "off_slate": 0.9444444444444444,
+          "recall": 0.15555555555555556,
+          "traps_recommended": 0.9444444444444444,
+          "trap_rejection_recall": 0.10317460317460317
+        },
+        "by_archetype": {
+          "blind_new_entrant": {
+            "n": 8,
+            "named_any": 1.0,
+            "precision_at_k": 0.0,
+            "tier_hit_rate": 0.0,
+            "mean_tier": 0,
+            "off_slate": 1.375,
+            "recall": 0.0,
+            "traps_recommended": 0.125,
+            "trap_rejection_recall": 0.0
+          },
+          "blind_next_team": {
+            "n": 10,
+            "named_any": 1.0,
+            "precision_at_k": 0.4,
+            "tier_hit_rate": 0.4,
+            "mean_tier": 1.6,
+            "off_slate": 0.6,
+            "recall": 0.28,
+            "traps_recommended": 1.6,
+            "trap_rejection_recall": 0.1857142857142857
+          }
+        }
+      }
+    }
+  }
+}
