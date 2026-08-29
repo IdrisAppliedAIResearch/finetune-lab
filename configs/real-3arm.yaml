@@ -51,8 +51,13 @@ train:
   optim: paged_adamw_8bit
   logging_steps: 5
   eval_steps: 25
-  save_steps: 50
-  save_total_limit: 2
+  # Aligned to the epoch boundary (1,829 examples / 16 = 115 steps) so the
+  # one-epoch model survives the run. Template collapse gets worse with
+  # exposure, and the base model's advantage was precisely the generality that
+  # more training overwrites -- so the epoch-1 checkpoint is a real candidate,
+  # not a fallback, and this way one run produces both.
+  save_steps: 115
+  save_total_limit: 3
 
   gate:
     enabled: true

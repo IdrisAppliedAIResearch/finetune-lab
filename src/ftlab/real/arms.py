@@ -22,7 +22,15 @@ from pathlib import Path
 from typing import Any
 
 from ..config import Config
-from .grade import aggregate, grade_one, known_companies, load_items, random_floor, render
+from .grade import (
+    aggregate,
+    collapse_report,
+    grade_one,
+    known_companies,
+    load_items,
+    random_floor,
+    render,
+)
 
 ARMS = {
     "a": ("fine-tuned + retrieval", True, True),
@@ -67,7 +75,12 @@ def run_arm(
         batch_size=batch_size,
     )
     graded = [grade_one(i, g, known) for i, g in zip(items, generated, strict=True)]
-    return ArmResult(arm=arm, label=label, summary=aggregate(graded), generations=generated)
+    summary = aggregate(graded)
+    # Recorded per arm because it is the failure the ranking metrics cannot see:
+    # a model can score respectably while fluently answering a different
+    # question in a shape it was trained on.
+    summary["collapse"] = collapse_report(items, generated)
+    return ArmResult(arm=arm, label=label, summary=summary, generations=generated)
 
 
 def compare(results: list[ArmResult], floor: dict[str, Any]) -> str:
@@ -92,6 +105,20 @@ def compare(results: list[ArmResult], floor: dict[str, Any]) -> str:
         for result in results:
             value = result.summary["overall"].get(key)
             row += f"{value:>12.3f}" if value is not None else f"{'--':>12}"
+        lines.append(row)
+
+    # Below the rule because it is a different kind of number: not how well the
+    # arm did, but whether it answered the question it was asked. The first run
+    # scored like an ordinary underperformer while forcing every blind answer
+    # into a trained shape, and none of the rows above could show that.
+    lines.append("-" * (49 + 12 * len(order)))
+    for key, label in (
+        ("answers_in_a_template", "answers in a trained template"),
+        ("answers_in_the_wrong_template", "...in the WRONG template"),
+    ):
+        row = f"{label:<40}{0.0:>9.3f}"
+        for result in results:
+            row += f"{result.summary['collapse'][key]:>12.3f}"
         lines.append(row)
     return "\n".join(lines)
 

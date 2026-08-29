@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import statistics
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -231,3 +232,64 @@ def known_companies(data_dir: str | Path = "data/real") -> list[str]:
     )
     names |= {r["recipient"] for r in primes}
     return sorted((n for n in names if len(n) > 3), key=len, reverse=True)
+
+
+# ---------------------------------------------------------------------------
+# template collapse
+# ---------------------------------------------------------------------------
+
+# Openings that only a corpus-trained model produces, one per generated
+# archetype. A base model asked these questions writes none of them.
+#
+# This is a first-class metric because it was the whole finding of the first
+# run and it was invisible in every number reported: precision, recall and
+# tier-hit all looked like ordinary underperformance, while the actual failure
+# was that eighteen of eighteen answers had been forced into one of seven
+# shapes. A model can score respectably on the ranking metrics while answering
+# a different question fluently, and only this catches that.
+TEMPLATE_MARKERS: tuple[tuple[str, str], ...] = (
+    ("prime_candidates", "Primes to approach"),
+    ("team_composition", "team, most-used first"),
+    ("sub_candidates", "Sub candidates for"),
+    ("repeat_partners", "has brought back"),
+    ("warm_intro", "existing partners already work"),
+    ("portfolio", "Reported role:"),
+    ("prior_relationship", "reported subcontract between"),
+    ("bench_depth", "distinct subcontractors across"),
+    ("new_at_agency", "No .* record:"),
+)
+
+
+def template_used(generated: str) -> str | None:
+    """Which training archetype's shape this answer fell into, if any."""
+    for name, marker in TEMPLATE_MARKERS:
+        if marker.startswith("No ") and marker.endswith("record:"):
+            if re.search(marker, generated):
+                return name
+        elif marker in generated:
+            return name
+    return None
+
+
+def collapse_report(items: list[dict[str, Any]], generated: list[str]) -> dict[str, Any]:
+    """How often answers took a trained shape, and whether it was the right one.
+
+    Emitting a template is not itself wrong -- a sub-candidates question should
+    produce a sub-candidates answer. What is wrong is emitting one that does not
+    match the question, which is what "answered a different question fluently"
+    looks like in a number.
+    """
+    used = 0
+    mismatched = 0
+    for item, text in zip(items, generated, strict=True):
+        template = template_used(text)
+        if template is None:
+            continue
+        used += 1
+        if template != item["meta"].get("archetype"):
+            mismatched += 1
+    total = max(1, len(items))
+    return {
+        "answers_in_a_template": used / total,
+        "answers_in_the_wrong_template": mismatched / total,
+    }

@@ -273,3 +273,55 @@ def test_company_records_carry_what_the_ranking_turns_on(graph):
     record = company_record(graph, name)
     for field in ("Agencies:", "NAICS:", "Teamed with"):
         assert field in record, f"{field} missing from a company record"
+
+
+# ---------------------------------------------------------------------------
+# template collapse
+# ---------------------------------------------------------------------------
+
+
+def test_collapse_metric_catches_a_model_answering_a_different_question():
+    """The failure the ranking metrics could not see.
+
+    The first fine-tune scored like an ordinary underperformer -- precision a
+    little low, recall a little low -- while actually forcing every blind answer
+    into one of seven trained shapes. Asked which companies were new to NIH it
+    produced a list of primes to approach. Nothing in precision or recall says
+    that; this does.
+    """
+    from ftlab.real.grade import collapse_report, template_used
+
+    items = [
+        {"meta": {"archetype": "blind_new_entrant"}},
+        {"meta": {"archetype": "sub_candidates"}},
+        {"meta": {"archetype": "blind_next_team"}},
+    ]
+    generated = [
+        # verbatim shape of the real failure
+        "Primes to approach for NIH work, by subcontracting volume:\n1. RTI",
+        # a template, but the right one for the question
+        "Sub candidates for X on CDC work:\n1. A\n2. B",
+        # no template at all
+        "Looking at each in turn, three of them have prior CDC awards.",
+    ]
+    report = collapse_report(items, generated)
+    assert report["answers_in_a_template"] == pytest.approx(2 / 3)
+    # only the first is a template that does not match its question
+    assert report["answers_in_the_wrong_template"] == pytest.approx(1 / 3)
+
+    assert template_used(generated[0]) == "prime_candidates"
+    assert template_used(generated[2]) is None
+
+
+def test_collapse_metric_is_silent_on_an_untemplated_model():
+    """A base model writes none of these openings; the floor must be zero."""
+    from ftlab.real.grade import collapse_report
+
+    items = [{"meta": {"archetype": "blind_next_team"}} for _ in range(3)]
+    generated = [
+        "I would start with the two that have prior awards with this prime.",
+        "None of these look like a fit for that customer.",
+        "Hard to say from the records provided.",
+    ]
+    report = collapse_report(items, generated)
+    assert report["answers_in_a_template"] == 0.0
