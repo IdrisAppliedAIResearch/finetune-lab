@@ -71,14 +71,17 @@ def conclusion_of(text: str, known: list[str] | None = None) -> str:
 
 
 def looks_truncated(text: str) -> bool:
-    """Did generation stop mid-thought rather than finish?
+    """Did generation run out of budget rather than finish?
 
-    Worth a metric of its own: 16 of 18 base-model answers in the first run were
-    cut off by the token budget while still enumerating candidates, so the arm
-    was scored on an answer it had not finished writing.
+    Reads the sentinel the generator appends when a sequence stopped on length
+    rather than on an end-of-sequence token. The first version guessed from
+    punctuation, and a complete bulleted list ends without a full stop -- it
+    reported 61% truncation for an arm whose longest answer used 60% of its
+    budget, which would have sent me off to fix a budget that was fine.
     """
-    stripped = text.rstrip()
-    return bool(stripped) and not stripped.endswith((".", "!", "?", ":", ")", '"'))
+    from ..infer import TRUNCATION_MARK
+
+    return TRUNCATION_MARK in text
 
 
 def split_answer(text: str) -> tuple[str, str]:
@@ -132,7 +135,14 @@ def grade_one(item: dict[str, Any], generated: str, known: list[str]) -> Graded:
         if isinstance(meta.get(key), str)
     }
 
-    recommended, rejected = split_answer(conclusion_of(generated, known))
+    # Split first, then look for a conclusion inside the recommended half.
+    # The other order is subtly wrong: "recommend" is a conclusion marker and it
+    # occurs inside "Not recommended", so the rejection heading was being read
+    # as the conclusion and everything after it filed as rejected -- leaving
+    # nothing recommended. Measured, that scored 27 of 51 answers as naming no
+    # company when 50 of 51 named one.
+    recommended, rejected = split_answer(generated)
+    recommended = conclusion_of(recommended, known)
     picked = [n for n in find_companies(recommended, known) if n not in subject][:TOP_K]
     turned_down = set(find_companies(rejected, known)) - subject
 

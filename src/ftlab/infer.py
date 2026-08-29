@@ -37,6 +37,11 @@ def load_for_inference(cfg: Config, adapter_dir: str | Path | None) -> tuple[Any
 # closely enough that a query and a training example look alike to the model.
 RETRIEVE_K = 12
 
+# Appended to an answer that hit the token budget instead of finishing. A
+# sentinel rather than a separate return value so it survives being written to
+# and read back from a generations file, which is where grading happens.
+TRUNCATION_MARK = "…[TRUNCATED]"
+
 @torch.no_grad()
 def generate(
     model: Any,
@@ -165,9 +170,19 @@ def generate_many(
             )
             prompt_len = encoded["input_ids"].shape[-1]
             for row in generated:
-                outputs.append(
-                    tokenizer.decode(row[prompt_len:], skip_special_tokens=True).strip()
-                )
+                completion = row[prompt_len:]
+                text = tokenizer.decode(completion, skip_special_tokens=True).strip()
+                # Mark answers that ran out of budget rather than finishing.
+                # Inferring this from the text is unreliable: a complete
+                # bulleted list ends without punctuation, which a
+                # "does it end in a full stop" heuristic reads as truncated --
+                # it reported 61% truncation on an arm whose longest answer used
+                # 60% of the budget. Whether generation stopped on an
+                # end-of-sequence token is the only signal that actually knows.
+                stopped_on_eos = bool((completion == tokenizer.eos_token_id).any())
+                if not stopped_on_eos and len(completion) >= max_new_tokens:
+                    text += TRUNCATION_MARK
+                outputs.append(text)
     finally:
         tokenizer.padding_side = original_side
     return outputs
