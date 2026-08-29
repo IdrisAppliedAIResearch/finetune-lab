@@ -582,7 +582,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--arm", action="append", choices=["a", "b", "c"],
         help="restrict to one arm; repeatable (default: all three)",
     )
-    arms.add_argument("--max-new-tokens", type=int, default=420)
+    arms.add_argument(
+        "--max-new-tokens", type=int, default=900,
+        help="a verbose model needs room to reach a conclusion; at 420 the "
+        "base model was cut off mid-analysis on 16 of 18 answers",
+    )
     arms.add_argument("--batch-size", type=int, default=8)
     arms.add_argument("--out", help="where to write arms.json")
     arms.set_defaults(func=cmd_arms)

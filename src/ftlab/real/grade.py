@@ -37,6 +37,44 @@ REJECT_MARKERS = (
 THINK_CLOSE = "</think>"
 
 
+# Phrases a model uses when it stops working and starts concluding. Needed
+# because a verbose model enumerates every candidate before choosing, and
+# reading the first names it mentions grades its *analysis order* rather than
+# its answer. Measured: the base model discussed all twelve candidates in slate
+# order, so "first four named" was very nearly a random draw -- which is exactly
+# the score it received, and the reason that score meant nothing.
+CONCLUSION = re.compile(
+    r"(?im)^.*(most likely|recommend(?:ation|ed)?|in summary|conclusion|"
+    r"therefore|final answer|answer).*$"
+)
+
+
+def conclusion_of(text: str) -> str:
+    """The part of an answer that states a choice, if the model states one.
+
+    Falls back to the whole text. A model that never concludes should be graded
+    on what it did produce, not excused for producing nothing.
+    """
+    matches = list(CONCLUSION.finditer(text))
+    if not matches:
+        return text
+    tail = text[matches[-1].start():]
+    # A marker in the opening sentence is a restatement of the task, not a
+    # conclusion; only trust it if some answer follows.
+    return tail if len(tail) > 40 else text
+
+
+def looks_truncated(text: str) -> bool:
+    """Did generation stop mid-thought rather than finish?
+
+    Worth a metric of its own: 16 of 18 base-model answers in the first run were
+    cut off by the token budget while still enumerating candidates, so the arm
+    was scored on an answer it had not finished writing.
+    """
+    stripped = text.rstrip()
+    return bool(stripped) and not stripped.endswith((".", "!", "?", ":", ")", '"'))
+
+
 def split_answer(text: str) -> tuple[str, str]:
     """(recommended, rejected) halves of a generated answer."""
     body = text.split(THINK_CLOSE, 1)[-1] if THINK_CLOSE in text else text
@@ -88,11 +126,14 @@ def grade_one(item: dict[str, Any], generated: str, known: list[str]) -> Graded:
         if isinstance(meta.get(key), str)
     }
 
-    recommended, rejected = split_answer(generated)
+    recommended, rejected = split_answer(conclusion_of(generated))
     picked = [n for n in find_companies(recommended, known) if n not in subject][:TOP_K]
     turned_down = set(find_companies(rejected, known)) - subject
 
-    scores: dict[str, float] = {"named_any": float(bool(picked))}
+    scores: dict[str, float] = {
+        "named_any": float(bool(picked)),
+        "truncated": float(looks_truncated(generated)),
+    }
     notes: dict[str, Any] = {"picked": picked}
 
     # Precision needs something to be precise about. A "have A and B ever
@@ -186,6 +227,7 @@ LABELS = (
     ("trap_rejection_recall", "hard negatives rejected"),
     ("off_slate", "companies named that were not offered"),
     ("named_any", "answers naming anything"),
+    ("truncated", "answers cut off by the token budget"),
 )
 
 

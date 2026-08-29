@@ -325,3 +325,47 @@ def test_collapse_metric_is_silent_on_an_untemplated_model():
     ]
     report = collapse_report(items, generated)
     assert report["answers_in_a_template"] == 0.0
+
+
+def test_a_verbose_model_is_graded_on_its_conclusion_not_its_notes():
+    """Measured failure: the base model was scored on its analysis order.
+
+    Asked to choose from a slate it enumerated all twelve candidates in the
+    order given, and the grader read the first four names it mentioned. That is
+    approximately a random draw, which is approximately the score it got -- so
+    the number said nothing about the model.
+    """
+    from ftlab.real.grade import conclusion_of, find_companies
+
+    known = ["ALPHA CORP", "BETA LLC", "GAMMA INC", "DELTA GROUP"]
+    verbose = (
+        "Let me work through each candidate.\n"
+        "1. ALPHA CORP: record [1], no prior awards with this prime.\n"
+        "2. BETA LLC: record [2], no relationship either.\n"
+        "3. GAMMA INC: record [3], two prior joint awards.\n"
+        "4. DELTA GROUP: record [4], one prior joint award.\n\n"
+        "Most likely: GAMMA INC and DELTA GROUP."
+    )
+    picked = find_companies(conclusion_of(verbose), known)[:4]
+    assert picked == ["GAMMA INC", "DELTA GROUP"], picked
+
+
+def test_an_answer_with_no_conclusion_is_graded_on_what_it_wrote():
+    """A model that never concludes is not excused for producing nothing."""
+    from ftlab.real.grade import conclusion_of
+
+    notes = "1. ALPHA CORP: record [1].\n2. BETA LLC: record [2]."
+    assert conclusion_of(notes) == notes
+
+
+def test_truncation_is_reported_rather_than_silently_scored():
+    """16 of 18 base-model answers hit the token budget in the first run.
+
+    Every arm was being scored on answers it had not finished writing, and
+    nothing in the report said so.
+    """
+    from ftlab.real.grade import looks_truncated
+
+    assert looks_truncated("...and the third candidate, AMAZON WEB SERVICES: **Teamed")
+    assert not looks_truncated("Most likely: GAMMA INC and DELTA GROUP.")
+    assert not looks_truncated("The records do not settle it.")

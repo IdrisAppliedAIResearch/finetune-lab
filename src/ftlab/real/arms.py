@@ -53,7 +53,7 @@ def run_arm(
     items: list[dict[str, Any]],
     known: list[str],
     adapter: str | Path | None,
-    max_new_tokens: int = 420,
+    max_new_tokens: int = 900,
     batch_size: int = 8,
 ) -> ArmResult:
     from ..infer import generate_many, load_for_inference
