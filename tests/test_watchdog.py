@@ -40,7 +40,12 @@ def test_catches_a_run_that_silently_got_slower(tmp_path):
     lines -- so every check that looks for a crash or for silence reported a
     healthy run for four hours.
     """
-    log = healthy(steps=10, rate=12.8) + bar(70, 168, 204.6)
+    # Sustained, because that is what happened: seventy-odd steps at 204 s,
+    # not one slow reading. A single spike is noise and must not fire -- see
+    # test_an_evaluation_pause_is_not_a_stall for why that matters.
+    log = healthy(steps=10, rate=12.8) + "".join(
+        bar(i, 168, 204.6) for i in range(66, 71)
+    )
     health = scan(write(tmp_path, log))
     assert health.state == "slow"
     assert health.alarming
@@ -60,10 +65,14 @@ def test_baseline_comes_from_the_run_itself(tmp_path):
     The healthy rate depends on corpus and hardware, so a hardcoded threshold
     would either miss a regression on a fast box or cry wolf on a slow one.
     """
-    slow_box = healthy(steps=10, rate=60.0) + bar(40, 168, 90.0)
+    slow_box = healthy(steps=10, rate=60.0) + "".join(
+        bar(i, 168, 90.0) for i in range(36, 41)
+    )
     assert scan(write(tmp_path, slow_box)).state == "ok"
 
-    fast_box = healthy(steps=10, rate=2.0) + bar(40, 168, 30.0)
+    fast_box = healthy(steps=10, rate=2.0) + "".join(
+        bar(i, 168, 30.0) for i in range(36, 41)
+    )
     assert scan(write(tmp_path, fast_box)).state == "slow"
 
 
@@ -113,7 +122,7 @@ def test_eval_progress_does_not_mask_a_training_slowdown(tmp_path):
     log = (
         healthy(steps=10, rate=12.8)
         + "  69%|## | 159/231 [00:40<00:16,  4.49it/s]\n"
-        + bar(70, 168, 204.6)
+        + "".join(bar(i, 168, 204.6) for i in range(66, 71))
     )
     health = scan(write(tmp_path, log))
     assert health.state == "slow"
@@ -145,3 +154,32 @@ def test_every_scan_returns_a_verdict(tmp_path):
         health = scan(write(tmp_path, body, age=age))
         assert health.state
         assert health.line()
+
+
+def test_an_evaluation_pause_is_not_a_stall(tmp_path):
+    """Measured false positive: tqdm smears the eval pause into the next steps.
+
+    An 84-second evaluation every 25 steps turned a steady 18 s/step into a
+    reported 43.23 then 36.00 before decaying back. The first version compared
+    the last reading to the baseline and fired every time, and an alarm that
+    goes off on every eval is one nobody reads.
+    """
+    header = "[ftlab] schedule: 230 steps (effective batch 16, 6 warmup)\n"
+    log = header + "".join(bar(i, 230, 16.3) for i in range(1, 12))
+    log += "".join(bar(i, 230, r) for i, r in
+                   ((148, 19.96), (149, 18.12), (150, 18.43), (151, 43.23), (152, 36.00)))
+    health = scan(write(tmp_path, log))
+    assert health.state == "ok", health.detail
+
+
+def test_a_sustained_stall_still_fires(tmp_path):
+    """The real incident, which must survive the fix for the false positive.
+
+    12.8 s/step drifting to 204 and staying there for seventy steps. Taking a
+    median over recent steps must not blunt this.
+    """
+    log = HEADER + "".join(bar(i, 168, 12.8) for i in range(1, 12))
+    log += "".join(bar(i, 168, 204.6) for i in range(60, 70))
+    health = scan(write(tmp_path, log))
+    assert health.state == "slow"
+    assert "16.0x" in health.detail

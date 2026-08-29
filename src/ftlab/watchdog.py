@@ -49,6 +49,11 @@ SLOW_FACTOR = 2.5
 # Steps used to establish the baseline. Enough to average over batch-length
 # variation, few enough to be established early.
 BASELINE_STEPS = 8
+# Steps averaged when judging the current rate. Wide enough that a single
+# post-evaluation spike cannot trip the alarm, narrow enough that a genuine
+# stall shows up within a few minutes.
+RECENT_STEPS = 5
+
 # No new step for this long counts as hung rather than slow.
 HANG_SECONDS = 900
 
@@ -119,7 +124,16 @@ def scan(
     if len(rates) < 2:
         return Health("starting", "no training steps reported yet", total=total or 0)
 
-    step, current = rates[-1]
+    step, _last = rates[-1]
+    # Median of the recent window, not the last reading. tqdm reports a smoothed
+    # rate, so the evaluation pause every eval_steps gets averaged into the next
+    # few steps: measured here, an 84-second eval turned a steady 18 s/step into
+    # a reported 43 then 36 before decaying back. Comparing the last value alone
+    # fired on every eval, and a watchdog that cries wolf is ignored, which is
+    # exactly as dangerous as one that stays silent. A sustained stall moves the
+    # median; one spike does not.
+    recent = [s for _, s in rates[-RECENT_STEPS:] if s > 0]
+    current = statistics.median(recent) if recent else 0.0
     baseline_pool = [s for _, s in rates[:BASELINE_STEPS] if s > 0]
     baseline = statistics.median(baseline_pool) if baseline_pool else 0.0
 
