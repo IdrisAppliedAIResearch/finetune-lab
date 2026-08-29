@@ -72,4 +72,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Two masking tests import fixtures as `tests.conftest`. Without the repo root
+# on the path pytest only adds `tests/` itself, so that import fails.
+pythonpath = ["."]
 addopts = "-q"

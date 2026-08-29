@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 400" width="880" height="400" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="880" height="400" fill="#FBFAF7"/>
+
+  <text x="20" y="30" font-size="15" font-weight="600" fill="#23211E">What training did buy: short, finished, on-topic answers</text>
+  <text x="20" y="52" font-size="12.5" fill="#6B6862">Average length of an answer, in characters. Same question, same records, same 51 questions.</text>
+
+  <g font-size="12.5" font-weight="600" fill="#23211E" text-anchor="end">
+    <text x="192" y="114">C  stock + notes</text>
+    <text x="192" y="162">B  trained, no notes</text>
+    <text x="192" y="210">A  trained + notes</text>
+  </g>
+
+  <rect x="205" y="94"  width="600" height="28" rx="3" fill="#2F7D95"/>
+  <rect x="205" y="142" width="89"  height="28" rx="3" fill="#B4AFA7"/>
+  <rect x="205" y="190" width="73"  height="28" rx="3" fill="#C2703D"/>
+
+  <g font-size="13" font-weight="700">
+    <text x="789" y="113" fill="#FFFFFF" text-anchor="end">8,353</text>
+    <text x="304" y="161" fill="#8A8580">1,233</text>
+    <text x="288" y="209" fill="#C2703D">1,015</text>
+  </g>
+
+  <text x="360" y="252" font-size="13" font-weight="600" fill="#23211E">8x shorter — and that gap is paid on every single question, forever.</text>
+
+  <line x1="20" y1="278" x2="860" y2="278" stroke="#E4DFD4"/>
+
+  <g stroke="#DCD6CA" fill="#FFFFFF">
+    <rect x="20"  y="296" width="410" height="88" rx="8"/>
+    <rect x="450" y="296" width="410" height="88" rx="8"/>
+  </g>
+
+  <text x="40" y="322" font-size="13" font-weight="600" fill="#23211E">Ran out of room mid-thought</text>
+  <text x="40" y="348" font-size="19" font-weight="700" fill="#C2703D">0 of 51</text>
+  <text x="118" y="348" font-size="12.5" fill="#6B6862">trained</text>
+  <text x="220" y="348" font-size="19" font-weight="700" fill="#2F7D95">51 of 51</text>
+  <text x="313" y="348" font-size="12.5" fill="#6B6862">stock</text>
+  <text x="40" y="370" font-size="11.5" fill="#6B6862">The stock model never once finished, even at a far larger limit.</text>
+
+  <text x="470" y="322" font-size="13" font-weight="600" fill="#23211E">Named firms that weren't on the list</text>
+  <text x="470" y="348" font-size="19" font-weight="700" fill="#C2703D">0.30</text>
+  <text x="518" y="348" font-size="12.5" fill="#6B6862">per answer, trained</text>
+  <text x="650" y="348" font-size="19" font-weight="700" fill="#2F7D95">0.55</text>
+  <text x="698" y="348" font-size="12.5" fill="#6B6862">stock</text>
+  <text x="470" y="370" font-size="11.5" fill="#6B6862">Training kept it answering from what it was actually given.</text>
+</svg>

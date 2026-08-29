@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 430" width="880" height="430" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="880" height="430" fill="#FBFAF7"/>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#A9A399"/>
+    </marker>
+  </defs>
+
+  <text x="20" y="26" font-size="14" font-weight="600" fill="#23211E">Step 1 — build the data from public records</text>
+
+  <g stroke="#DCD6CA" fill="#FFFFFF">
+    <rect x="15"  y="42" width="190" height="82" rx="8"/>
+    <rect x="235" y="42" width="190" height="82" rx="8"/>
+    <rect x="455" y="42" width="190" height="82" rx="8"/>
+    <rect x="675" y="42" width="190" height="82" rx="8"/>
+  </g>
+
+  <g font-size="13" font-weight="600" fill="#23211E">
+    <text x="31"  y="66">Public award records</text>
+    <text x="251" y="66">A map of who</text>
+    <text x="471" y="66">1,790 questions</text>
+    <text x="691" y="66">A sealed test</text>
+  </g>
+  <g font-size="12" fill="#6B6862">
+    <text x="31"  y="86">USAspending.gov, free</text>
+    <text x="31"  y="104">and open. 1,793 firms.</text>
+    <text x="251" y="86">worked for whom, and</text>
+    <text x="251" y="104">on what. 3,327 links.</text>
+    <text x="471" y="86">12 kinds, with the</text>
+    <text x="471" y="104">answers read off the map.</text>
+    <text x="691" y="86">51 questions only later</text>
+    <text x="691" y="104">records can answer.</text>
+  </g>
+
+  <g stroke="#A9A399" stroke-width="1.5" marker-end="url(#ar)">
+    <line x1="207" y1="83" x2="231" y2="83"/>
+    <line x1="427" y1="83" x2="451" y2="83"/>
+    <line x1="647" y1="83" x2="671" y2="83"/>
+  </g>
+
+  <line x1="15" y1="152" x2="865" y2="152" stroke="#E4DFD4"/>
+  <text x="20" y="182" font-size="14" font-weight="600" fill="#23211E">Step 2 — answer those 51 sealed questions three different ways</text>
+
+  <g stroke="#DCD6CA" fill="#FFFFFF">
+    <rect x="10"  y="200" width="270" height="160" rx="8"/>
+    <rect x="305" y="200" width="270" height="160" rx="8"/>
+    <rect x="600" y="200" width="270" height="160" rx="8"/>
+  </g>
+  <rect x="10"  y="200" width="270" height="5" rx="2" fill="#C2703D"/>
+  <rect x="305" y="200" width="270" height="5" rx="2" fill="#8A8580"/>
+  <rect x="600" y="200" width="270" height="5" rx="2" fill="#2F7D95"/>
+
+  <g font-size="12" font-weight="700" letter-spacing="1">
+    <text x="28"  y="230" fill="#C2703D">ARM A</text>
+    <text x="323" y="230" fill="#8A8580">ARM B</text>
+    <text x="618" y="230" fill="#2F7D95">ARM C</text>
+  </g>
+  <g font-size="15" font-weight="600" fill="#23211E">
+    <text x="28"  y="256">Trained model, given notes</text>
+    <text x="323" y="256">Trained model, alone</text>
+    <text x="618" y="256">Stock model, given notes</text>
+  </g>
+  <g font-size="12.5" fill="#4A4741">
+    <text x="28"  y="284">We taught the model on our</text>
+    <text x="28"  y="303">data, then also handed it the</text>
+    <text x="28"  y="322">relevant records at question</text>
+    <text x="28"  y="341">time. The full pitch.</text>
+
+    <text x="323" y="284">Same trained model, but no</text>
+    <text x="323" y="303">records handed over. Tests</text>
+    <text x="323" y="322">whether the training put the</text>
+    <text x="323" y="341">facts inside the model.</text>
+
+    <text x="618" y="284">No training at all. Just a</text>
+    <text x="618" y="303">plain search that pulls the</text>
+    <text x="618" y="322">records, plus the model as</text>
+    <text x="618" y="341">it ships. The bar to beat.</text>
+  </g>
+
+  <text x="20" y="400" font-size="12.5" fill="#6B6862">Everything else is held identical between the three: same questions, same records, same settings, same scoring.</text>
+  <text x="20" y="419" font-size="12.5" fill="#6B6862">If A and C land in the same place, the training was decoration.</text>
+</svg>
