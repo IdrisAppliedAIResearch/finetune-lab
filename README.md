@@ -3,6 +3,34 @@
 Local LoRA / QLoRA fine-tuning for **Question–Reasoning–Answer (QRA) triples**, on a
 single Windows GPU box. Config-driven, no cloud, no external logging.
 
+> ### Where this project actually got to
+>
+> It started as a synthetic-corpus experiment and became a three-arm benchmark on
+> **real** federal contracting data. Most of this README describes the original
+> synthetic pipeline, which still works and still runs; the current work is the
+> real corpus and the comparison built on it.
+>
+> * **[PLAN.md](PLAN.md)** — the experiment: three arms, metrics, and the limits
+>   of what it can show
+> * **[benchmarks/2026-08-28-real-3arm-v2/RESULT.md](benchmarks/2026-08-28-real-3arm-v2/RESULT.md)**
+>   — the result
+> * **[benchmarks/](benchmarks/)** — every run kept with its generations, including
+>   the ones that were wrong and why
+>
+> **The headline:** on ranking accuracy the untouched base model with retrieval
+> beat the fine-tuned model (0.477 vs 0.445, random floor 0.369). What
+> fine-tuning bought was answer discipline — bounded, on-slate, terminating
+> answers at an eighth of the output length. Without retrieval the fine-tune
+> falls *below* the random floor, so the knowledge is not in the weights.
+>
+> A caution for anyone reading the numbers: several early results in this
+> repository were wrong, and the commit messages say how. A context leak fed the
+> answer key to the model as retrieved evidence; a truncation heuristic keyed on
+> punctuation reported 61% truncation for an arm that never hit its budget; a
+> conclusion parser matched a literal backspace byte and silently did nothing.
+> Each was caught by an oracle replay or a floor, which is the argument for
+> having them.
+
 The pipeline: `check-data` → `train` → `infer` → `merge` → `export` (GGUF for ollama).
 
 ---
