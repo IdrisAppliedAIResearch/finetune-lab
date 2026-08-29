@@ -1,7 +1,6 @@
 # Three-arm benchmark: fine-tuned model vs. deterministic architecture
 
-A small, real-data experiment sized for a conversation, not an MVP. The question
-it answers: **does fine-tuning a local model buy reasoning that a base model plus
+A small, real-data experiment. The question it answers: **does fine-tuning a local model buy reasoning that a base model plus
 a deterministic retrieval architecture does not already have?**
 
 Everything below is built and measured. Numbers are from the current corpus.
@@ -262,9 +261,11 @@ blind set contains question forms the rules were not written against.
 4. **Real data is dirty.** A $6.17bn "subcontract" appeared in the first page of
    results. Cleaning choices affect all three arms and were made before any
    answer key was built.
-5. **Real company names.** Fine internally. For anything customer-facing,
-   pseudonymize consistently — a demo that says "don't team with [real firm]" is
-   a reputational problem, and the experiment is unaffected by renaming.
+5. **Real company names.** Every firm named here comes from public federal award
+   records, but the generated answers rank and reject named third parties.
+   Pseudonymizing consistently costs the experiment nothing — the graph
+   structure carries the signal, not the labels — and is worth doing before
+   these outputs travel anywhere.
 
 ---
 

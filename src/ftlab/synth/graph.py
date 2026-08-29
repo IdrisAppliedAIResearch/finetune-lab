@@ -62,7 +62,7 @@ SCALES: dict[str, Scale] = {
     "full": Scale(contracts=150, partners=300, people=70, opportunities=90),
 }
 
-# Our company is fixed rather than generated. A demo needs a stable protagonist
+# The protagonist firm is fixed rather than generated: the corpus needs a stable
 # with a deliberate shape: deep in epidemiology, evaluation, and program
 # support; genuinely thin in health IT. That gap is what makes "who should we
 # team with" a real question instead of a formality.
