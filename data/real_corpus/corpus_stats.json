@@ -10,7 +10,7 @@
     "repeat_pairs_train": 397
   },
   "questions": {
-    "total": 1566,
+    "total": 1790,
     "by_archetype": {
       "prior_relationship": 360,
       "sub_candidates": 316,
@@ -18,18 +18,25 @@
       "prime_candidates": 180,
       "portfolio": 180,
       "repeat_partners": 123,
-      "warm_intro": 111
+      "warm_intro": 111,
+      "bench_depth": 61,
+      "capability_match": 60,
+      "agency_bridge": 54,
+      "unsupported": 40,
+      "new_at_agency": 9
     },
-    "ranking_questions": 316,
+    "ranking_questions": 439,
     "ranking_questions_with_hard_negatives": 316
   },
-  "base_questions": 471,
+  "base_questions": 695,
   "paraphrases_per_question": 4,
-  "facts_train": 401,
-  "facts_eval": 70,
+  "facts_train": 591,
+  "facts_eval": 104,
   "facts_in_both": 0,
-  "train": 1335,
-  "eval": 231,
+  "train": 1829,
+  "eval": 263,
   "blind": 18,
-  "closed_book_share": 0.416
+  "general_examples": 150,
+  "authored_examples": 152,
+  "closed_book_share": 0.508
 }

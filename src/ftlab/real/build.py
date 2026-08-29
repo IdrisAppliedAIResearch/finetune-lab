@@ -26,9 +26,12 @@ import random
 from pathlib import Path
 from typing import Any
 
+from .archetypes import generate_extra
+from .authored import authored_examples
 from .graph import TeamingGraph, build_graph
 from .ingest import load_slice
 from .questions import Question, describe, expand_paraphrases, generate, generate_blind
+from .variety import general_examples
 
 # Fraction of training examples with the retrieved records withheld, so the same
 # adapter can answer closed-book. Two in five is enough to establish the mode
@@ -140,13 +143,19 @@ def build(
     eval_ratio: float = 0.15,
     dropout: float = CONTEXT_DROPOUT,
     paraphrases: int = 3,
+    general: int = 150,
+    authored_repeat: int = 8,
 ) -> dict[str, Any]:
     slice_ = load_slice(data_dir)
     graph = build_graph(slice_.prime_awards, slice_.subawards)
 
     search_index = build_index(graph)
     rng = random.Random(seed)
-    base = generate(graph)
+    # Thirteen archetypes, not seven. The first fine-tune learned to recognise
+    # an archetype and emit its template -- 18 of 18 blind answers took one of
+    # seven shapes -- so a wider set is half the remedy and varied answer shapes
+    # within a type are the other half.
+    base = generate(graph) + generate_extra(graph, seed=seed + 7)
     questions = expand_paraphrases(base, per_question=paraphrases, seed=seed)
 
     # Split on the fact, not the sentence. Splitting rows would scatter
@@ -188,6 +197,29 @@ def build(
         # questions; the arm decides whether the context is used.
         "blind.jsonl": render(blind_qs, drop=False),
     }
+    # Hand-written examples, repeated. Few in number and carrying the style the
+    # generated bulk cannot: answers that vary in shape, that decline when the
+    # records do not settle a question, and that correct a question's premise.
+    # Repetition is the cheap way to give fifteen good examples weight against
+    # a thousand templated ones -- and unlike a repeated template, each copy is
+    # of prose that was actually reasoned.
+    if authored_repeat:
+        written["train.jsonl"] = [
+            *written["train.jsonl"],
+            *authored_examples(repeat=authored_repeat),
+        ]
+
+    # General instruction data, closed-book and off-domain. A model fine-tuned
+    # only on domain templates has no reason to keep the instruction-following
+    # it started with, and that capability is exactly what let the untuned base
+    # model beat both fine-tuned arms on an unfamiliar question type.
+    if general:
+        written["train.jsonl"] = [
+            *written["train.jsonl"],
+            *general_examples(general, seed=seed),
+        ]
+        rng.shuffle(written["train.jsonl"])
+
     for filename, rows in written.items():
         (out / filename).write_text(
             "\n".join(json.dumps(r, ensure_ascii=False) for r in rows), encoding="utf-8"
@@ -206,6 +238,8 @@ def build(
         "train": len(written["train.jsonl"]),
         "eval": len(written["eval.jsonl"]),
         "blind": len(written["blind.jsonl"]),
+        "general_examples": general,
+        "authored_examples": len(authored_examples(repeat=authored_repeat)),
         "closed_book_share": round(
             sum(1 for r in written["train.jsonl"] if r["meta"]["closed_book"])
             / max(1, len(written["train.jsonl"])),
