@@ -364,11 +364,16 @@ def test_truncation_is_reported_rather_than_silently_scored():
     Every arm was being scored on answers it had not finished writing, and
     nothing in the report said so.
     """
+    from ftlab.infer import TRUNCATION_MARK
     from ftlab.real.grade import looks_truncated
 
-    assert looks_truncated("...and the third candidate, AMAZON WEB SERVICES: **Teamed")
+    assert looks_truncated("...AMAZON WEB SERVICES: **Teamed" + TRUNCATION_MARK)
     assert not looks_truncated("Most likely: GAMMA INC and DELTA GROUP.")
-    assert not looks_truncated("The records do not settle it.")
+
+    # The case that made the punctuation heuristic useless: a finished bulleted
+    # list ends without a full stop. It flagged 31 of 51 answers from an arm
+    # whose longest used 60% of its budget.
+    assert not looks_truncated("- ALPHA CORP: no reported relationship")
 
 
 def test_a_held_out_archetype_answered_in_its_training_twin_is_not_collapse():

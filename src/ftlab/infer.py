@@ -42,6 +42,7 @@ RETRIEVE_K = 12
 # and read back from a generations file, which is where grading happens.
 TRUNCATION_MARK = "…[TRUNCATED]"
 
+
 @torch.no_grad()
 def generate(
     model: Any,
@@ -179,7 +180,8 @@ def generate_many(
                 # it reported 61% truncation on an arm whose longest answer used
                 # 60% of the budget. Whether generation stopped on an
                 # end-of-sequence token is the only signal that actually knows.
-                stopped_on_eos = bool((completion == tokenizer.eos_token_id).any())
+                eos = getattr(tokenizer, "eos_token_id", None)
+                stopped_on_eos = eos is not None and bool((completion == eos).any())
                 if not stopped_on_eos and len(completion) >= max_new_tokens:
                     text += TRUNCATION_MARK
                 outputs.append(text)
