@@ -35,7 +35,7 @@
   "facts_in_both": 0,
   "train": 1829,
   "eval": 263,
-  "blind": 18,
+  "blind": 51,
   "general_examples": 150,
   "authored_examples": 152,
   "closed_book_share": 0.508

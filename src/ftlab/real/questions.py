@@ -575,7 +575,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def generate_blind(graph: TeamingGraph, seed: int = 1729, count: int = 20) -> list[Question]:
+def generate_blind(graph: TeamingGraph, seed: int = 1729, count: int = 200) -> list[Question]:
     """Questions whose answers live entirely in the sealed period.
 
     This is the answer to "how do you know you did not train on the answer".
@@ -591,6 +591,12 @@ def generate_blind(graph: TeamingGraph, seed: int = 1729, count: int = 20) -> li
       after the cutoff?
     * *new entrant* -- which companies started subbing at an agency in the
       sealed period, having no reported work there before?
+
+    ``count`` defaults high deliberately: the sealed period supports 51
+    questions and the first run used 18 of them, which left the whole comparison
+    resting on ten items per archetype. Differences of a few points were noise
+    at that size and had to be reported as such. Nothing is gained by capping a
+    held-out set below what the data allows.
 
     Graded on precision and recall against the observed outcome. Recall is a
     lower bound: incomplete FSRS reporting means a correct name can be missing
