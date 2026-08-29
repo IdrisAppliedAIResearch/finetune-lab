@@ -346,7 +346,7 @@ def test_a_verbose_model_is_graded_on_its_conclusion_not_its_notes():
         "4. DELTA GROUP: record [4], one prior joint award.\n\n"
         "Most likely: GAMMA INC and DELTA GROUP."
     )
-    picked = find_companies(conclusion_of(verbose), known)[:4]
+    picked = find_companies(conclusion_of(verbose, known), known)[:4]
     assert picked == ["GAMMA INC", "DELTA GROUP"], picked
 
 

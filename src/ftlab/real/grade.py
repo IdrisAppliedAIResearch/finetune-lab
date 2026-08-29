@@ -44,24 +44,30 @@ THINK_CLOSE = "</think>"
 # order, so "first four named" was very nearly a random draw -- which is exactly
 # the score it received, and the reason that score meant nothing.
 CONCLUSION = re.compile(
-    r"(?im)^.*(most likely|recommend(?:ation|ed)?|in summary|conclusion|"
-    r"therefore|final answer|answer).*$"
+    r"(?im)^.*\b(most likely|recommend(?:ation|ed)?|in summary|conclusion|"
+    r"therefore|final answer|answer)\b.*$"
 )
 
 
-def conclusion_of(text: str) -> str:
+def conclusion_of(text: str, known: list[str] | None = None) -> str:
     """The part of an answer that states a choice, if the model states one.
 
-    Falls back to the whole text. A model that never concludes should be graded
-    on what it did produce, not excused for producing nothing.
+    Falls back to the whole text. A model that never concludes is graded on what
+    it did produce, not excused for producing nothing.
+
+    The tail is only trusted when it actually names a company. A first attempt
+    guarded on tail length instead and rejected a correct three-word conclusion
+    -- "Most likely: GAMMA INC and DELTA GROUP." is 39 characters. Length is a
+    proxy for content and a bad one; whether the tail names anything is the
+    thing actually being asked.
     """
     matches = list(CONCLUSION.finditer(text))
     if not matches:
         return text
     tail = text[matches[-1].start():]
-    # A marker in the opening sentence is a restatement of the task, not a
-    # conclusion; only trust it if some answer follows.
-    return tail if len(tail) > 40 else text
+    if known is None:
+        return tail
+    return tail if any(name in tail for name in known) else text
 
 
 def looks_truncated(text: str) -> bool:
@@ -126,7 +132,7 @@ def grade_one(item: dict[str, Any], generated: str, known: list[str]) -> Graded:
         if isinstance(meta.get(key), str)
     }
 
-    recommended, rejected = split_answer(conclusion_of(generated))
+    recommended, rejected = split_answer(conclusion_of(generated, known))
     picked = [n for n in find_companies(recommended, known) if n not in subject][:TOP_K]
     turned_down = set(find_companies(rejected, known)) - subject
 
