@@ -130,6 +130,29 @@ def cmd_masked_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_masked_train(args: argparse.Namespace) -> int:
+    """GRPO against the verified reward on the masked-sub training half."""
+    from .real.rl import train
+
+    cfg = _load_config(args)
+    stats = train(
+        cfg,
+        split_path=args.split,
+        out_dir=args.out,
+        epochs=args.epochs,
+        num_generations=args.num_generations,
+        learning_rate=args.learning_rate,
+        beta=args.beta,
+        temperature=args.temperature,
+        max_completion_length=args.max_completion_length,
+        batch_size=args.batch_size,
+        grad_accum=args.grad_accum,
+        limit=args.limit,
+    )
+    print(json.dumps(stats, indent=2))
+    return 0
+
+
 def cmd_masked_run(args: argparse.Namespace) -> int:
     """Generate and score answers for the masked-sub split."""
     from .real.rollout import load_split, run, save
@@ -273,6 +296,38 @@ def build_parser() -> argparse.ArgumentParser:
         help="shuffles the slate; the answer's position must not be learnable",
     )
     masked.set_defaults(func=cmd_masked_build)
+
+    masked_train = sub.add_parser(
+        "masked-train", help="GRPO on the masked-sub training half"
+    )
+    _add_config_args(masked_train)
+    masked_train.add_argument(
+        "--split", default="data/real_corpus/masked_sub.train.jsonl",
+        help="the TRAINING half. The eval half shares no prime with it and "
+        "nothing may be trained on it.",
+    )
+    masked_train.add_argument("--out", help="run dir (default <run_dir>/grpo)")
+    masked_train.add_argument("--epochs", type=float, default=2.0)
+    masked_train.add_argument(
+        "--num-generations", type=int, default=8,
+        help="rollouts per prompt; the group the advantage is measured against",
+    )
+    masked_train.add_argument("--learning-rate", type=float, default=1e-6)
+    masked_train.add_argument(
+        "--beta", type=float, default=0.0,
+        help="KL penalty. Above 0 a reference model stays resident alongside "
+        "the policy, which is another 7 GB.",
+    )
+    masked_train.add_argument(
+        "--temperature", type=float, default=1.0,
+        help="rollout sampling temperature; at 0 every sample in a group is "
+        "identical and the group-relative advantage is exactly zero",
+    )
+    masked_train.add_argument("--max-completion-length", type=int, default=700)
+    masked_train.add_argument("--batch-size", type=int, default=8)
+    masked_train.add_argument("--grad-accum", type=int, default=4)
+    masked_train.add_argument("--limit", type=int, help="first N prompts, for a smoke run")
+    masked_train.set_defaults(func=cmd_masked_train)
 
     masked_run = sub.add_parser(
         "masked-run", help="generate and score answers on the masked-sub split"

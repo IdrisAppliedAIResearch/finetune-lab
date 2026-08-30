@@ -85,8 +85,34 @@ def load_base_model(cfg: ModelConfig) -> Any:
     return model
 
 
+def build_lora_config(lora: Any) -> Any:
+    """The LoRA config, in one place.
+
+    Extracted so GRPO builds the same adapter the supervised path does. It
+    matters more than it looks: ``exclude_modules`` keeps the adapter off Gemma
+    4's vision and audio towers, and a second copy of this that drifted would
+    wrap adapters around encoder linears a text batch never activates -- an
+    adapter that trains slower and shares no parameters with the one the rest of
+    the project measures.
+    """
+    from peft import LoraConfig
+
+    target = "all-linear" if lora.target_modules == "auto" else list(lora.target_modules)
+    return LoraConfig(
+        r=lora.r,
+        lora_alpha=lora.alpha,
+        lora_dropout=lora.dropout,
+        bias=lora.bias,
+        task_type="CAUSAL_LM",
+        target_modules=target,
+        exclude_modules=list(lora.exclude_modules) or None,
+        modules_to_save=list(lora.modules_to_save) or None,
+        use_rslora=lora.use_rslora,
+    )
+
+
 def attach_lora(model: Any, cfg: Config) -> Any:
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    from peft import get_peft_model, prepare_model_for_kbit_training
 
     if cfg.model.load_in_4bit:
         model = prepare_model_for_kbit_training(
@@ -110,22 +136,7 @@ def attach_lora(model: Any, cfg: Config) -> Any:
             model.enable_input_require_grads()
         return model
 
-    lora = cfg.lora
-    target = "all-linear" if lora.target_modules == "auto" else list(lora.target_modules)
-
-    peft_config = LoraConfig(
-        r=lora.r,
-        lora_alpha=lora.alpha,
-        lora_dropout=lora.dropout,
-        bias=lora.bias,
-        task_type="CAUSAL_LM",
-        target_modules=target,
-        exclude_modules=list(lora.exclude_modules) or None,
-        modules_to_save=list(lora.modules_to_save) or None,
-        use_rslora=lora.use_rslora,
-    )
-
-    model = get_peft_model(model, peft_config)
+    model = get_peft_model(model, build_lora_config(cfg.lora))
 
     if cfg.model.gradient_checkpointing:
         model.gradient_checkpointing_enable()
