@@ -21,6 +21,7 @@ about knowledge rather than formatting.
 
 from __future__ import annotations
 
+import collections
 import json
 import random
 from pathlib import Path
@@ -28,9 +29,18 @@ from typing import Any
 
 from .archetypes import generate_extra
 from .authored import authored_examples
+from .authored_context import context_examples
+from .authored_profiles import profile_examples
 from .graph import TeamingGraph, build_graph
 from .ingest import load_slice
-from .questions import Question, describe, expand_paraphrases, generate, generate_blind
+from .questions import (
+    Question,
+    _agency_short,
+    describe,
+    expand_paraphrases,
+    generate,
+    generate_blind,
+)
 from .variety import general_examples
 
 # Fraction of training examples with the retrieved records withheld, so the same
@@ -44,21 +54,101 @@ CONTEXT_DROPOUT = 0.4
 CONTEXT_K = 13
 
 
+PARTNERS_SHOWN = 8
+AGENCIES_SHOWN = 5
+
+
+def _partner_lines(company: Any, limit: int = PARTNERS_SHOWN) -> tuple[int, str]:
+    """Partners with how often, most-used first, each with where.
+
+    The previous version listed six partner names in alphabetical order and no
+    counts at all, which had two consequences worth stating because they shaped
+    a whole batch of training data.
+
+    The truncation was uninformative: Perspecta has 33 partners and the six
+    shown started at ANACAPA and stopped at CISCO, so its most-used supplier by
+    a factor of five -- HP, 27 awards -- did not appear in its own record. And
+    no per-pair count existed anywhere in retrieval, so every answer in the
+    corpus citing "27 reported awards" was asking the model to produce a number
+    the prompt does not contain. The grader reads company names and not numbers,
+    so a model learning to invent them scored exactly as well as one that did
+    not.
+
+    Ordering by use rather than alphabet is safe here for the same reason the
+    counts are: ``Company`` is built from training-period rows only, so nothing
+    in this line can carry the sealed period's answer. It reflects who a prime
+    has hired before, which is the base rate the blind answer key names
+    explicitly, and it reaches every arm through the same context.
+
+    98% of (prime, sub) pairs sit at a single agency, so the agency rides along
+    in brackets at almost no cost; the handful that span components list their
+    top two.
+    """
+    counts: collections.Counter[str] = collections.Counter()
+    where: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
+    for row in company.as_sub:  # this company was the subcontractor
+        counts[row["prime"]] += 1
+        where[row["prime"]][row["agency"]] += 1
+    for row in company.as_prime:  # this company hired the subcontractor
+        counts[row["sub"]] += 1
+        where[row["sub"]][row["agency"]] += 1
+
+    # Most used first, alphabetical within a tie so a rebuild is deterministic.
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+    parts = []
+    for partner, total in ranked:
+        agencies = where[partner].most_common(2)
+        if len(where[partner]) == 1:
+            detail = _agency_short(agencies[0][0])
+        else:
+            detail = ", ".join(f"{_agency_short(a)} {n}" for a, n in agencies)
+            if len(where[partner]) > 2:
+                detail += ", ..."
+        parts.append(f"{partner} {total} ({detail})")
+    return len(counts), "; ".join(parts)
+
+
 def company_record(graph: TeamingGraph, name: str) -> str:
     """One company as retrievable text, from training-period evidence only."""
     company = graph.companies.get(name)
     if company is None:
         return f"{name}\nNo record."
-    agencies = ", ".join(company.agencies[:5]) or "none on record"
+
+    # Awards and distinct counterparties per component, so "how much do they do
+    # here" and "how widely do they team here" are both readable. The bare list
+    # of agency names could answer neither, and several question types turn on
+    # exactly that comparison across a prime's components.
+    per_agency: dict[str, list[int]] = {}
+    partners_at: dict[str, set[str]] = collections.defaultdict(set)
+    for row in company.as_sub:
+        partners_at[row["agency"]].add(row["prime"])
+    for row in company.as_prime:
+        partners_at[row["agency"]].add(row["sub"])
+    awards_at: collections.Counter[str] = collections.Counter()
+    for row in (*company.prime_awards, *company.as_sub, *company.as_prime):
+        if row.get("agency"):
+            awards_at[row["agency"]] += 1
+    for agency in company.agencies[:AGENCIES_SHOWN]:
+        per_agency[agency] = [awards_at.get(agency, 0), len(partners_at.get(agency, ()))]
+
+    if per_agency:
+        agencies = ", ".join(
+            f"{agency} ({awards} award{'s' if awards != 1 else ''}, "
+            f"{partners} partner{'s' if partners != 1 else ''})"
+            for agency, (awards, partners) in per_agency.items()
+        )
+    else:
+        agencies = "none on record"
+
     naics = ", ".join(company.naics[:5]) or "none on record"
-    partners = sorted(company.partners)
+    total, listed = _partner_lines(company)
     lines = [
         name,
         f"Agencies: {agencies}",
         f"NAICS: {naics}",
         f"Subcontracts taken: {len(company.as_sub)}; awards where prime: {len(company.as_prime)}",
-        f"Teamed with ({len(partners)}): {', '.join(partners[:6])}"
-        if partners
+        f"Teamed with ({total}), most used first: {listed}"
+        if total
         else "Teamed with: none on record",
     ]
     work = company.descriptions(1)
@@ -145,6 +235,8 @@ def build(
     paraphrases: int = 3,
     general: int = 150,
     authored_repeat: int = 8,
+    authored_context_repeat: int = 8,
+    authored_profile_repeat: int = 8,
 ) -> dict[str, Any]:
     slice_ = load_slice(data_dir)
     graph = build_graph(slice_.prime_awards, slice_.subawards)
@@ -209,6 +301,28 @@ def build(
             *authored_examples(repeat=authored_repeat),
         ]
 
+    # The same thing again with the records attached. Those above are all
+    # closed-book, which aimed every hand-written row at arm B -- the arm that
+    # scored below the random floor -- and left arm A learning open-book
+    # behaviour from generated templates alone. These carry a real context
+    # block and reason over it, including the case the generated set cannot
+    # produce: a record that is in the library and not on the slate.
+    if authored_context_repeat:
+        written["train.jsonl"] = [
+            *written["train.jsonl"],
+            *context_examples(graph, search_index, repeat=authored_context_repeat),
+        ]
+
+    # Record-reading profiles. The slate examples teach choosing between named
+    # candidates; these teach what the fields in a retrieved record mean, which
+    # is the only part that transfers to a firm the model has never seen -- and
+    # 71% of the blind set's true pairs are exactly that.
+    if authored_profile_repeat:
+        written["train.jsonl"] = [
+            *written["train.jsonl"],
+            *profile_examples(graph, search_index, repeat=authored_profile_repeat),
+        ]
+
     # General instruction data, closed-book and off-domain. A model fine-tuned
     # only on domain templates has no reason to keep the instruction-following
     # it started with, and that capability is exactly what let the untuned base
@@ -240,6 +354,12 @@ def build(
         "blind": len(written["blind.jsonl"]),
         "general_examples": general,
         "authored_examples": len(authored_examples(repeat=authored_repeat)),
+        "authored_profile_examples": len(
+            profile_examples(graph, search_index, repeat=authored_profile_repeat)
+        ),
+        "authored_context_examples": len(
+            context_examples(graph, search_index, repeat=authored_context_repeat)
+        ),
         "closed_book_share": round(
             sum(1 for r in written["train.jsonl"] if r["meta"]["closed_book"])
             / max(1, len(written["train.jsonl"])),

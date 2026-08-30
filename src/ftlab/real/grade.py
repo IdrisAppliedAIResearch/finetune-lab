@@ -28,11 +28,30 @@ TOP_K = 4
 # Headings the corpus uses to separate picks from rejections. An answer with no
 # heading is read as recommending everything it names, which is the
 # conservative reading: it cannot be credited with a rejection it never made.
+#
+# "Do not" used to be on this list and was doing real damage. The system prompt
+# contains "do not name a company that does not appear in them", and the base
+# model restates its instructions before answering -- so the marker fired on the
+# echo and filed the entire answer body as *rejected*. Measured on the v2 run:
+# 10 of 51 arm-C answers, 0 of 51 for arms A and B, which emit a trained heading
+# first and never reach it. In all 10 the "rejected" half was the longer one.
+# Those answers scored as naming nobody, dropped out of the precision mean, and
+# donated a free traps_recommended=0 to a mean taken over all 51 -- flattering
+# the untuned arm on the one metric the write-up called decisive.
+#
+# Two defences now. The list holds only headings a corpus answer actually uses,
+# and a heading only counts at the start of a line. Every genuine occurrence in
+# the stored generations is already line-initial (26 in arm A, 36 in arm B, 0 in
+# arm C), so anchoring costs nothing and stops mid-sentence prose from ever
+# being read as a section break again.
 REJECT_MARKERS = (
     "Not recommended, despite looking like obvious picks:",
     "Not recommended",
     "Worth rejecting",
-    "Do not",
+)
+
+_REJECT_HEADING = re.compile(
+    r"(?m)^[ \t]*(?:" + "|".join(re.escape(m) for m in REJECT_MARKERS) + r")"
 )
 THINK_CLOSE = "</think>"
 
@@ -85,12 +104,17 @@ def looks_truncated(text: str) -> bool:
 
 
 def split_answer(text: str) -> tuple[str, str]:
-    """(recommended, rejected) halves of a generated answer."""
+    """(recommended, rejected) halves of a generated answer.
+
+    Splits at the first rejection *heading* -- a marker at the start of a line.
+    Prose that happens to contain the same words mid-sentence is not a section
+    break, and treating it as one is what let a restated system prompt swallow
+    an entire answer.
+    """
     body = text.split(THINK_CLOSE, 1)[-1] if THINK_CLOSE in text else text
-    for marker in REJECT_MARKERS:
-        if marker in body:
-            head, _, tail = body.partition(marker)
-            return head, tail
+    match = _REJECT_HEADING.search(body)
+    if match:
+        return body[: match.start()], body[match.start() :]
     return body, ""
 
 
@@ -154,20 +178,35 @@ def grade_one(item: dict[str, Any], generated: str, known: list[str]) -> Graded:
 
     # Precision needs something to be precise about. A "have A and B ever
     # teamed" question answered correctly with "no" has an empty key, and
-    # scoring it 0.0 would punish the right answer.
-    if picked and gold:
-        scores["precision_at_k"] = len(set(picked) & gold) / len(picked)
-    if picked:
-        if tiers:
-            # Tier 3+ means a real relationship with this prime; that is what a
-            # correct pick looks like even when it is not one of the five names
-            # the answer key happens to list.
-            scores["tier_hit_rate"] = sum(
-                1 for n in picked if tiers.get(n, 0) >= 3
-            ) / len(picked)
-            scores["mean_tier"] = statistics.mean(tiers.get(n, 0) for n in picked)
-            # Ungrounded: named a company the prompt never offered.
-            scores["off_slate"] = float(sum(1 for n in picked if n not in tiers))
+    # scoring it 0.0 would punish the right answer -- so the guard is on `gold`,
+    # not on whether the model said anything.
+    #
+    # Naming nobody when there *is* a key is a different thing entirely, and it
+    # used to be scored by omission: the answer dropped out of the precision
+    # mean while still contributing a free zero to traps_recommended, which is
+    # computed over every item below. On the v2 run that left the arms averaged
+    # over different denominators -- 40, 47 and 49 of 51 -- and reported side by
+    # side as though they were comparable. A non-answer is a failed answer to
+    # "name four", so it scores zero and stays in the mean; `named_any` above
+    # carries the information that it was blank rather than wrong.
+    if gold:
+        scores["precision_at_k"] = (
+            len(set(picked) & gold) / len(picked) if picked else 0.0
+        )
+    if tiers:
+        # Tier 3+ means a real relationship with this prime; that is what a
+        # correct pick looks like even when it is not one of the five names
+        # the answer key happens to list.
+        scores["tier_hit_rate"] = (
+            sum(1 for n in picked if tiers.get(n, 0) >= 3) / len(picked)
+            if picked
+            else 0.0
+        )
+        scores["mean_tier"] = (
+            statistics.mean(tiers.get(n, 0) for n in picked) if picked else 0.0
+        )
+        # Ungrounded: named a company the prompt never offered.
+        scores["off_slate"] = float(sum(1 for n in picked if n not in tiers))
 
     if gold:
         scores["recall"] = len(set(picked) & gold) / len(gold)

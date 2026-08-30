@@ -225,6 +225,17 @@ class Config(BaseModel):
             )
         if not 0.0 <= self.data.eval_split_ratio < 1.0:
             raise ValueError("data.eval_split_ratio must be in [0, 1)")
+        # Keeping the best model requires a checkpoint to exist at the step it
+        # was measured. The v2 run evaluated every 25 steps and saved every 115,
+        # so its best model -- step 175 -- was never written, and the arms ran on
+        # the final checkpoint instead. A misaligned pair silently discards the
+        # thing the whole eval schedule exists to find.
+        if self.train.save_steps % self.train.eval_steps:
+            raise ValueError(
+                f"train.save_steps ({self.train.save_steps}) must be a multiple "
+                f"of train.eval_steps ({self.train.eval_steps}), or the best "
+                "checkpoint may fall on a step that is never saved"
+            )
         if self.data.reasoning_format == "answer_only" and self.data.train_on_reasoning:
             # Not an error -- just meaningless, since there is no trace in the
             # target. Normalise it so the run log tells the truth.

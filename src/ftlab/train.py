@@ -70,6 +70,16 @@ def build_training_args(cfg: Config, schedule: dict[str, int], has_eval: bool) -
         save_strategy="steps",
         save_steps=cfg.train.save_steps,
         save_total_limit=cfg.train.save_total_limit,
+        # The v2 run evaluated every 25 steps, found its best model at step 175,
+        # and saved checkpoints only at 115 and 230 -- so the best model was
+        # never written to disk and both fine-tuned arms were served by the
+        # final, worse one. Keeping the best requires that a checkpoint exist at
+        # the step it was measured, which is why the config asserts
+        # save_steps % eval_steps == 0, and that the Trainer be told to reload
+        # it, which is what these three lines do.
+        load_best_model_at_end=has_eval,
+        metric_for_best_model="eval_loss" if has_eval else None,
+        greater_is_better=False if has_eval else None,
         dataloader_num_workers=cfg.train.dataloader_num_workers,
         report_to=[cfg.run.report_to] if cfg.run.report_to != "none" else [],
         # Our rows are already exactly the tensors the model consumes; letting

@@ -215,3 +215,26 @@ def test_max_steps_caps_the_schedule():
 
     cfg = config_mod.load("smoke.yaml", {"train.max_steps": 6})
     assert compute_schedule(cfg, n_train=10_000)["total_steps"] == 6
+
+
+def test_save_steps_must_align_with_eval_steps():
+    """A best checkpoint on an unsaved step is a best checkpoint you cannot serve.
+
+    The v2 run evaluated every 25 steps, found its best at 175, and saved only
+    at 115 and 230. Both fine-tuned arms then ran on step 230 -- worse on eval,
+    and carrying the memorisation gap the gate had already flagged.
+    """
+    import pytest
+
+    from ftlab.config import Config
+
+    base = {
+        "model": {"base": "unused"},
+        "data": {"train_path": "unused.jsonl"},
+        "train": {"eval_steps": 25, "save_steps": 115},
+    }
+    with pytest.raises(ValueError, match="multiple"):
+        Config.model_validate(base)
+
+    base["train"]["save_steps"] = 25
+    Config.model_validate(base)

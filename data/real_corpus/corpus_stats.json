@@ -33,10 +33,12 @@
   "facts_train": 591,
   "facts_eval": 104,
   "facts_in_both": 0,
-  "train": 1829,
+  "train": 2149,
   "eval": 263,
   "blind": 51,
   "general_examples": 150,
   "authored_examples": 152,
-  "closed_book_share": 0.508
+  "authored_profile_examples": 120,
+  "authored_context_examples": 200,
+  "closed_book_share": 0.432
 }

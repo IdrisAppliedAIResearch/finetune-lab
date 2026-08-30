@@ -1,0 +1,245 @@
+{
+  "floor": {
+    "overall": {
+      "named_any": 1.0,
+      "truncated": 0.0,
+      "precision_at_k": 0.369281045751634,
+      "tier_hit_rate": 0.369281045751634,
+      "mean_tier": 1.477124183006536,
+      "off_slate": 0.0,
+      "recall": 0.3334640522875817,
+      "traps_recommended": 2.5098039215686274,
+      "trap_rejection_recall": 0.0
+    }
+  },
+  "oracle": {
+    "n": 51,
+    "overall": {
+      "named_any": 1.0,
+      "truncated": 0.0,
+      "precision_at_k": 0.9852941176470589,
+      "tier_hit_rate": 0.9852941176470589,
+      "mean_tier": 3.9411764705882355,
+      "off_slate": 0.058823529411764705,
+      "recall": 0.8797385620915033,
+      "traps_recommended": 0.0,
+      "trap_rejection_recall": 0.0
+    },
+    "by_archetype": {
+      "blind_new_entrant": {
+        "n": 8,
+        "named_any": 1.0,
+        "truncated": 0.0,
+        "precision_at_k": 1.0,
+        "tier_hit_rate": 1.0,
+        "mean_tier": 4,
+        "off_slate": 0.0,
+        "recall": 1.0,
+        "traps_recommended": 0.0,
+        "trap_rejection_recall": 0.0
+      },
+      "blind_next_team": {
+        "n": 43,
+        "named_any": 1.0,
+        "truncated": 0.0,
+        "precision_at_k": 0.9825581395348837,
+        "tier_hit_rate": 0.9825581395348837,
+        "mean_tier": 3.9302325581395348,
+        "off_slate": 0.06976744186046512,
+        "recall": 0.8573643410852714,
+        "traps_recommended": 0.0,
+        "trap_rejection_recall": 0.0
+      }
+    }
+  },
+  "arms": {
+    "d": {
+      "label": "prior-teaming rule, no model",
+      "summary": {
+        "n": 51,
+        "overall": {
+          "named_any": 0.8431372549019608,
+          "truncated": 0.0,
+          "precision_at_k": 0.4199346405228758,
+          "tier_hit_rate": 0.4199346405228758,
+          "mean_tier": 1.6797385620915033,
+          "off_slate": 0.0,
+          "recall": 0.3669934640522876,
+          "traps_recommended": 1.6862745098039216,
+          "trap_rejection_recall": 0.0
+        },
+        "by_archetype": {
+          "blind_new_entrant": {
+            "n": 8,
+            "named_any": 0.0,
+            "truncated": 0.0,
+            "precision_at_k": 0.0,
+            "tier_hit_rate": 0.0,
+            "mean_tier": 0.0,
+            "off_slate": 0.0,
+            "recall": 0.0,
+            "traps_recommended": 0.0,
+            "trap_rejection_recall": 0.0
+          },
+          "blind_next_team": {
+            "n": 43,
+            "named_any": 1.0,
+            "truncated": 0.0,
+            "precision_at_k": 0.49806201550387597,
+            "tier_hit_rate": 0.49806201550387597,
+            "mean_tier": 1.9922480620155039,
+            "off_slate": 0.0,
+            "recall": 0.4352713178294574,
+            "traps_recommended": 2.0,
+            "trap_rejection_recall": 0.0
+          }
+        },
+        "collapse": {
+          "answers_in_a_template": 0.0,
+          "answers_in_the_wrong_template": 0.0
+        }
+      }
+    },
+    "c": {
+      "label": "base model + retrieval",
+      "summary": {
+        "n": 51,
+        "overall": {
+          "named_any": 0.9607843137254902,
+          "truncated": 0.8431372549019608,
+          "precision_at_k": 0.5147058823529411,
+          "tier_hit_rate": 0.5147058823529411,
+          "mean_tier": 2.0588235294117645,
+          "off_slate": 0.2549019607843137,
+          "recall": 0.3934640522875817,
+          "traps_recommended": 1.4705882352941178,
+          "trap_rejection_recall": 0.0
+        },
+        "by_archetype": {
+          "blind_new_entrant": {
+            "n": 8,
+            "named_any": 1.0,
+            "truncated": 1.0,
+            "precision_at_k": 0.375,
+            "tier_hit_rate": 0.375,
+            "mean_tier": 1.5,
+            "off_slate": 0.0,
+            "recall": 0.375,
+            "traps_recommended": 2.5,
+            "trap_rejection_recall": 0.0
+          },
+          "blind_next_team": {
+            "n": 43,
+            "named_any": 0.9534883720930233,
+            "truncated": 0.813953488372093,
+            "precision_at_k": 0.5406976744186046,
+            "tier_hit_rate": 0.5406976744186046,
+            "mean_tier": 2.1627906976744184,
+            "off_slate": 0.3023255813953488,
+            "recall": 0.39689922480620154,
+            "traps_recommended": 1.2790697674418605,
+            "trap_rejection_recall": 0.0
+          }
+        },
+        "collapse": {
+          "answers_in_a_template": 0.0,
+          "answers_in_the_wrong_template": 0.0
+        }
+      }
+    },
+    "b": {
+      "label": "fine-tuned, no retrieval",
+      "summary": {
+        "n": 51,
+        "overall": {
+          "named_any": 0.9607843137254902,
+          "truncated": 0.0,
+          "precision_at_k": 0.27941176470588236,
+          "tier_hit_rate": 0.27941176470588236,
+          "mean_tier": 1.1176470588235294,
+          "off_slate": 0.0196078431372549,
+          "recall": 0.25163398692810457,
+          "traps_recommended": 2.5294117647058822,
+          "trap_rejection_recall": 0.29602396514161217
+        },
+        "by_archetype": {
+          "blind_new_entrant": {
+            "n": 8,
+            "named_any": 1.0,
+            "truncated": 0.0,
+            "precision_at_k": 0.21875,
+            "tier_hit_rate": 0.21875,
+            "mean_tier": 0.875,
+            "off_slate": 0.0,
+            "recall": 0.21875,
+            "traps_recommended": 3.125,
+            "trap_rejection_recall": 0.0
+          },
+          "blind_next_team": {
+            "n": 43,
+            "named_any": 0.9534883720930233,
+            "truncated": 0.0,
+            "precision_at_k": 0.29069767441860467,
+            "tier_hit_rate": 0.29069767441860467,
+            "mean_tier": 1.1627906976744187,
+            "off_slate": 0.023255813953488372,
+            "recall": 0.25775193798449614,
+            "traps_recommended": 2.4186046511627906,
+            "trap_rejection_recall": 0.3510981912144703
+          }
+        },
+        "collapse": {
+          "answers_in_a_template": 0.7058823529411765,
+          "answers_in_the_wrong_template": 0.058823529411764705
+        }
+      }
+    },
+    "a": {
+      "label": "fine-tuned + retrieval",
+      "summary": {
+        "n": 51,
+        "overall": {
+          "named_any": 1.0,
+          "truncated": 0.0,
+          "precision_at_k": 0.4493464052287582,
+          "tier_hit_rate": 0.4493464052287582,
+          "mean_tier": 1.7973856209150327,
+          "off_slate": 0.09803921568627451,
+          "recall": 0.365359477124183,
+          "traps_recommended": 1.9215686274509804,
+          "trap_rejection_recall": 0.37834578275754743
+        },
+        "by_archetype": {
+          "blind_new_entrant": {
+            "n": 8,
+            "named_any": 1.0,
+            "truncated": 0.0,
+            "precision_at_k": 0.1875,
+            "tier_hit_rate": 0.1875,
+            "mean_tier": 0.75,
+            "off_slate": 0.0,
+            "recall": 0.1875,
+            "traps_recommended": 3.0,
+            "trap_rejection_recall": 0.0
+          },
+          "blind_next_team": {
+            "n": 43,
+            "named_any": 1.0,
+            "truncated": 0.0,
+            "precision_at_k": 0.49806201550387597,
+            "tier_hit_rate": 0.49806201550387597,
+            "mean_tier": 1.9922480620155039,
+            "off_slate": 0.11627906976744186,
+            "recall": 0.3984496124031008,
+            "traps_recommended": 1.7209302325581395,
+            "trap_rejection_recall": 0.4487356958287191
+          }
+        },
+        "collapse": {
+          "answers_in_a_template": 0.6862745098039216,
+          "answers_in_the_wrong_template": 0.0196078431372549
+        }
+      }
+    }
+  }
+}

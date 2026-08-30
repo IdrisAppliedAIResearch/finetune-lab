@@ -294,7 +294,7 @@ def cmd_arms(args: argparse.Namespace) -> int:
         split_path=args.split,
         out_dir=args.out or (cfg.run_dir / "arms"),
         adapter=adapter,
-        arms=tuple(args.arm or ("c", "b", "a")),
+        arms=tuple(args.arm or ("d", "c", "b", "a")),
         max_new_tokens=args.max_new_tokens,
         batch_size=args.batch_size,
     )
@@ -571,7 +571,7 @@ def build_parser() -> argparse.ArgumentParser:
     real_build.set_defaults(func=cmd_real_build)
 
     arms = sub.add_parser(
-        "arms", help="run the three-arm benchmark (tuned+RAG, tuned, base+RAG)"
+        "arms", help="run the arm benchmark (rule, base+RAG, tuned, tuned+RAG)"
     )
     _add_config_args(arms)
     arms.add_argument(
@@ -579,11 +579,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     arms.add_argument("--adapter", help="adapter dir (defaults to <run_dir>/adapter)")
     arms.add_argument(
-        "--arm", action="append", choices=["a", "b", "c"],
-        help="restrict to one arm; repeatable (default: all three)",
+        "--arm", action="append", choices=["a", "b", "c", "d"],
+        help="restrict to one arm; repeatable (default: all four). Arm D is the "
+        "prior-teaming rule and needs no model or GPU.",
     )
     arms.add_argument(
-        "--max-new-tokens", type=int, default=900,
+        # Matches what the v2 benchmark was actually run at. The default used
+        # to be 900 while the recorded run passed 2500, so re-running the
+        # command as documented truncated the base model far harder than the
+        # published numbers did.
+        "--max-new-tokens", type=int, default=2500,
         help="a verbose model needs room to reach a conclusion; at 420 the "
         "base model was cut off mid-analysis on 16 of 18 answers",
     )
