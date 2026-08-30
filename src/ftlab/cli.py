@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
+
+# Set before anything imports torch. Fragmentation is what turns a run that
+# fits into a run that thrashes, and this allocator mode is what the
+# supervised runs needed for the same reason.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 from . import config as config_mod
 
@@ -147,7 +153,9 @@ def cmd_masked_train(args: argparse.Namespace) -> int:
         max_completion_length=args.max_completion_length,
         batch_size=args.batch_size,
         grad_accum=args.grad_accum,
+        generation_batch_size=args.generation_batch_size,
         limit=args.limit,
+        log_completions=args.log_completions,
     )
     print(json.dumps(stats, indent=2))
     return 0
@@ -309,7 +317,7 @@ def build_parser() -> argparse.ArgumentParser:
     masked_train.add_argument("--out", help="run dir (default <run_dir>/grpo)")
     masked_train.add_argument("--epochs", type=float, default=2.0)
     masked_train.add_argument(
-        "--num-generations", type=int, default=8,
+        "--num-generations", type=int, default=4,
         help="rollouts per prompt; the group the advantage is measured against",
     )
     masked_train.add_argument("--learning-rate", type=float, default=1e-6)
@@ -323,10 +331,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="rollout sampling temperature; at 0 every sample in a group is "
         "identical and the group-relative advantage is exactly zero",
     )
-    masked_train.add_argument("--max-completion-length", type=int, default=700)
-    masked_train.add_argument("--batch-size", type=int, default=8)
-    masked_train.add_argument("--grad-accum", type=int, default=4)
+    masked_train.add_argument(
+        "--max-completion-length", type=int, default=320,
+        help="rollouts average 215 tokens and every baseline reply finished "
+        "inside this; the budget is paid on every rollout of every step",
+    )
+    masked_train.add_argument(
+        "--batch-size", type=int, default=1,
+        help="the forward/backward chunk. Small: VRAM headroom buys step "
+        "time here, it does not cost it.",
+    )
+    masked_train.add_argument("--grad-accum", type=int, default=8)
+    masked_train.add_argument(
+        "--generation-batch-size", type=int,
+        help="rollouts resident at once (default: one group). TRL derives "
+        "this from --grad-accum, which ties VRAM to a knob about batching; "
+        "at 8 resident the step took 499s against 37s at 4.",
+    )
     masked_train.add_argument("--limit", type=int, help="first N prompts, for a smoke run")
+    masked_train.add_argument(
+        "--log-completions", action="store_true",
+        help="print sampled completions each step. Off by default: TRL's "
+        "rich table killed a run on Windows, where a redirected stdout is "
+        "cp1252 and the first non-encodable character raises.",
+    )
     masked_train.set_defaults(func=cmd_masked_train)
 
     masked_run = sub.add_parser(

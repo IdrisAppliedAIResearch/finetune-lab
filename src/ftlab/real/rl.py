@@ -111,26 +111,48 @@ def train(
     split_path: str | Path = "data/real_corpus/masked_sub.train.jsonl",
     out_dir: str | Path | None = None,
     epochs: float = 2.0,
-    num_generations: int = 8,
+    num_generations: int = 4,
     learning_rate: float = 1e-6,
     beta: float = 0.0,
     temperature: float = 1.0,
-    max_completion_length: int = 700,
-    batch_size: int = 8,
-    grad_accum: int = 4,
+    # The answer is four sentences and five names; rollouts here average 215
+    # tokens and every one of the 534 baseline replies finished well inside
+    # this. The budget is paid on every rollout of every step, so it is not a
+    # free margin: at 700 a single optimiser step did not finish in 22 minutes.
+    max_completion_length: int = 320,
+    batch_size: int = 1,
+    grad_accum: int = 8,
+    generation_batch_size: int | None = None,
     limit: int | None = None,
+    log_completions: bool = False,
+    vram_fraction: float = 0.92,
 ) -> dict[str, Any]:
     """Run GRPO and write the adapter.
 
+    **The resident rollout count is the thing to watch, not the totals.** TRL
+    derives ``generation_batch_size`` from ``gradient_accumulation_steps``, so
+    raising accumulation to get a stable effective batch also multiplies how
+    many rollouts sit in VRAM at once. That is how the first run here reached
+    32.1 GB of a 32.6 GB card and took 499 s per step -- against 37 s for the
+    same work at half the resident rollouts and 19 GB. Doubling the work made it
+    13x slower, which is not a compute curve.
+
+    It is the failure ``train.py`` documents from the supervised runs, in a new
+    place: 12.8 s/step to 204 s/step, power draw collapsing to 141 W at a
+    reported 97% utilisation, and nothing in the log saying "out of memory".
+    So ``generation_batch_size`` is pinned to ``num_generations`` here -- the
+    smallest legal value, one group at a time -- and accumulation is free to be
+    whatever the effective batch wants.
+
     ``beta`` defaults to 0, which is TRL's default and also what keeps this
     inside 32 GB: a non-zero KL penalty needs a reference model resident
-    alongside the policy. Raise it if the policy starts producing degenerate
-    text, and watch that VRAM.
+    alongside the policy.
     """
     import torch
     from trl import GRPOConfig, GRPOTrainer
 
     from ..model import build_lora_config, build_quantization_config, load_tokenizer
+    from ..train import build_memory_guard, cap_memory_fraction
 
     tokenizer = load_tokenizer(cfg.model)
     items = load_split(split_path)
@@ -141,12 +163,23 @@ def train(
     run_dir = Path(out_dir or (cfg.run_dir / "grpo"))
     run_dir.mkdir(parents=True, exist_ok=True)
 
+    # Loud beats slow. Without a cap, exhausting VRAM on Windows degrades into
+    # system-memory spilling and the run just gets slower and slower.
+    cap_memory_fraction(vram_fraction)
+
     args = GRPOConfig(
         output_dir=str(run_dir),
         num_train_epochs=epochs,
         num_generations=num_generations,
         per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=grad_accum,
+        # One group resident at a time. Left to default this is
+        # batch_size * grad_accum, which quietly ties memory to a knob that has
+        # nothing to do with memory.
+        generation_batch_size=generation_batch_size or num_generations,
+        # LoRA optimiser state is small, but paging it is free at this size and
+        # it is the same optimiser the supervised path uses.
+        optim="paged_adamw_8bit",
         learning_rate=learning_rate,
         beta=beta,
         temperature=temperature,
@@ -160,7 +193,12 @@ def train(
         logging_steps=1,
         save_steps=20,
         save_total_limit=3,
-        log_completions=True,
+        # TRL prints sampled completions through rich, and on Windows a
+        # redirected stdout is cp1252: the first table containing a character
+        # outside it raised UnicodeEncodeError and killed the run at the end of
+        # step 1, after eight minutes of rollouts. The completions are not worth
+        # a run, and ``masked-run`` shows what the policy produces anyway.
+        log_completions=log_completions,
         report_to="none",
     )
 
@@ -172,6 +210,10 @@ def train(
         processing_class=tokenizer,
         quantization_config=build_quantization_config(cfg.model),
         peft_config=build_lora_config(cfg.lora),
+        # Every step, not every 25: a GRPO step is minutes, so the cost of
+        # releasing cached blocks is noise and the fragmentation it
+        # prevents is what turned 37 s into 499 s.
+        callbacks=[build_memory_guard(every=1)],
     )
     result = trainer.train()
 
@@ -182,12 +224,22 @@ def train(
         "adapter": str(adapter),
         "prompts": len(dataset),
         "num_generations": num_generations,
+        "generation_batch_size": args.generation_batch_size,
+        "steps_per_generation": args.steps_per_generation,
         "epochs": epochs,
         "metrics": {
             k: (round(v, 5) if isinstance(v, float) else v)
             for k, v in result.metrics.items()
         },
         "peak_vram_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2)
+        if torch.cuda.is_available()
+        else None,
+        # The number that says whether a slow step is slow because of memory.
+        # A retry is the allocator failing, freeing cached blocks and trying
+        # again -- invisible in wall-clock terms except that everything is
+        # slower. Generation alone peaks at 16.6 GB with none of these; the
+        # optimisation half is what fills the card.
+        "alloc_retries": torch.cuda.memory_stats().get("num_alloc_retries", 0)
         if torch.cuda.is_available()
         else None,
     }
