@@ -1,13 +1,13 @@
 {
   "graph": {
-    "companies": 1793,
-    "train_subawards": 2559,
-    "blind_subawards": 768,
-    "train_pairs": 1681,
-    "blind_pairs": 571,
-    "blind_pairs_unseen_in_train": 407,
-    "primes_with_3plus_subs_train": 132,
-    "repeat_pairs_train": 397
+    "companies": 4710,
+    "train_subawards": 14830,
+    "blind_subawards": 686,
+    "train_pairs": 6389,
+    "blind_pairs": 512,
+    "blind_pairs_unseen_in_train": 220,
+    "primes_with_3plus_subs_train": 287,
+    "repeat_pairs_train": 2418
   },
   "distinct_examples": 59,
   "held_out_examples": [
@@ -28,5 +28,5 @@
     "authored_slate": 69,
     "authored": 45
   },
-  "closed_book_share": 0.307
+  "closed_book_share": 0.621
 }

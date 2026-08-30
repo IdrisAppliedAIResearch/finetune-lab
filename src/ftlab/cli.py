@@ -90,6 +90,20 @@ def cmd_train(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_real_fetch(args: argparse.Namespace) -> int:
+    """Pull a fresh slice from the USASpending API, one year at a time."""
+    from .real.ingest import build_slice, write_slice
+
+    data = build_slice(
+        subaward_pages=args.subaward_pages,
+        prime_pages=args.prime_pages,
+        years=range(args.from_year, args.to_year + 1),
+    )
+    stats = write_slice(data, args.out or "data/real")
+    print(json.dumps(stats, indent=2))
+    return 0
+
+
 def cmd_real_build(args: argparse.Namespace) -> int:
     """Build the real corpus from the cached USASpending slice."""
     from .real.build import build
@@ -197,6 +211,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     train.set_defaults(func=cmd_train)
 
+
+    real_fetch = sub.add_parser(
+        "real-fetch", help="pull the USASpending slice (per year, so no year is truncated)"
+    )
+    real_fetch.add_argument("--out", help="slice dir to write (default data/real)")
+    real_fetch.add_argument("--from-year", type=int, default=2015)
+    real_fetch.add_argument("--to-year", type=int, default=2025)
+    real_fetch.add_argument(
+        "--subaward-pages", type=int, default=25,
+        help="pages of 100 per year; the years with the most rows need ~25",
+    )
+    real_fetch.add_argument("--prime-pages", type=int, default=10)
+    real_fetch.set_defaults(func=cmd_real_fetch)
 
     real_build = sub.add_parser(
         "real-build", help="build the real USASpending corpus"

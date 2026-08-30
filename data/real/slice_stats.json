@@ -1,10 +1,10 @@
 {
-  "prime_awards": 1301,
-  "subawards": 2008,
-  "distinct_primes": 201,
-  "distinct_subs": 1059,
-  "distinct_pairs": 1303,
-  "companies": 1191,
-  "subawards_with_real_description": 1082,
-  "description_rate": 0.539
+  "prime_awards": 1816,
+  "subawards": 15325,
+  "distinct_primes": 530,
+  "distinct_subs": 4110,
+  "distinct_pairs": 6545,
+  "companies": 4423,
+  "subawards_with_real_description": 8482,
+  "description_rate": 0.553
 }

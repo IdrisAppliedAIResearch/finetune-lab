@@ -40,6 +40,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections.abc import Iterable
 from typing import Any
 
 API = "https://api.usaspending.gov/api/v2/search/spending_by_award/"
@@ -127,6 +128,17 @@ def _paged(
     return rows
 
 
+# The record set is far larger than any single sorted pull can reach. Asking
+# for 2015-2025 sorted by date and taking 2000 rows gets 2015; asking again in
+# reverse gets 2025. That is exactly what the first ingest did, and the corpus
+# it produced had 1354 rows from 2015, 1654 from 2025, and nothing at all from
+# 2016-2023 -- a hole that was invisible in the totals and made half the
+# relational evidence in every company record a decade stale. Fetching one year
+# at a time is the fix: each window is small enough that the page budget reaches
+# the end of it.
+YEARS = tuple(range(2015, 2026))
+
+
 def fetch_subawards(
     pages: int = 20,
     limit: int = 100,
@@ -135,11 +147,11 @@ def fetch_subawards(
     agency: str = "Department of Health and Human Services",
     order: str = "desc",
 ) -> list[dict[str, Any]]:
-    """Subcontracts reported against HHS prime contracts.
+    """Subcontracts reported against HHS prime contracts, one time window.
 
-    ``order`` picks which end of the record set you get. Both are needed: the
-    corpus trains on older teaming and is blind-tested on newer, so pulling only
-    the newest pages leaves nothing to train on.
+    Returns at most ``pages * limit`` rows from one end of the window. Prefer
+    :func:`fetch_subawards_by_year` unless you want a specific slice: over a
+    wide window this silently returns one end of the range and nothing else.
     """
     return _paged(
         {
@@ -155,7 +167,7 @@ def fetch_subawards(
             "subawards": True,
         },
         pages,
-        label="subawards",
+        label=f"subawards {start[:4]}",
     )
 
 
@@ -166,11 +178,13 @@ def fetch_prime_awards(
     end: str = "2025-12-31",
     agency: str = "Department of Health and Human Services",
 ) -> list[dict[str, Any]]:
-    """HHS prime contracts, largest first.
+    """HHS prime contracts for one time window, largest first.
 
     Sorted by amount rather than date on purpose: these supply the company
     histories a question is answered from, and the large awards are the ones a
-    capture team would actually cite.
+    capture team would actually cite. Sorting by amount over a wide window has
+    the same truncation problem as sorting by date, so this is also called per
+    year -- otherwise the whole budget goes to a handful of enormous IDIQs.
     """
     return _paged(
         {
@@ -186,8 +200,40 @@ def fetch_prime_awards(
             "subawards": False,
         },
         pages,
-        label="prime awards",
+        label=f"prime awards {start[:4]}",
     )
+
+
+def _by_year(
+    fetch: Any, years: Iterable[int], pages: int, **kwargs: Any
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for year in years:
+        rows.extend(
+            fetch(pages=pages, start=f"{year}-01-01", end=f"{year}-12-31", **kwargs)
+        )
+    return rows
+
+
+def fetch_subawards_by_year(
+    years: Iterable[int] = YEARS,
+    pages: int = 25,
+    limit: int = 100,
+    agency: str = "Department of Health and Human Services",
+) -> list[dict[str, Any]]:
+    """Every year separately, so no year is truncated away by the page budget."""
+    return _by_year(
+        fetch_subawards, years, pages, limit=limit, agency=agency, order="desc"
+    )
+
+
+def fetch_prime_awards_by_year(
+    years: Iterable[int] = YEARS,
+    pages: int = 10,
+    limit: int = 100,
+    agency: str = "Department of Health and Human Services",
+) -> list[dict[str, Any]]:
+    return _by_year(fetch_prime_awards, years, pages, limit=limit, agency=agency)
 
 
 # ---------------------------------------------------------------------------
@@ -277,12 +323,50 @@ class Slice:
         }
 
 
+def _dedupe(rows: list[dict[str, Any]], key: Any) -> list[dict[str, Any]]:
+    seen: set[Any] = set()
+    out = []
+    for row in rows:
+        k = key(row)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(row)
+    return out
+
+
 def build_slice(
-    subaward_pages: int = 20, prime_pages: int = 20, **kwargs: Any
+    subaward_pages: int = 25,
+    prime_pages: int = 10,
+    years: Iterable[int] | None = YEARS,
+    **kwargs: Any,
 ) -> Slice:
-    """Fetch, filter to public health, clean, and normalise into a Slice."""
-    raw_subs = fetch_subawards(pages=subaward_pages, **kwargs)
-    raw_primes = fetch_prime_awards(pages=prime_pages, **kwargs)
+    """Fetch, filter to public health, clean, and normalise into a Slice.
+
+    ``years`` fetches each year separately, which is the only way to get the
+    middle of the record set; pass ``None`` to fall back to a single window.
+    """
+    if years is None:
+        raw_subs = fetch_subawards(pages=subaward_pages, **kwargs)
+        raw_primes = fetch_prime_awards(pages=prime_pages, **kwargs)
+    else:
+        raw_subs = fetch_subawards_by_year(years, pages=subaward_pages, **kwargs)
+        raw_primes = fetch_prime_awards_by_year(years, pages=prime_pages, **kwargs)
+
+    # Year windows do not overlap, but a mod reported against two fiscal years
+    # and a retried page both show up twice, and a duplicated edge silently
+    # doubles a company's apparent teaming history.
+    raw_subs = _dedupe(
+        raw_subs,
+        lambda r: r.get("Sub-Award ID")
+        or (
+            r.get("Prime Award ID"),
+            r.get("Sub-Awardee Name"),
+            r.get("Sub-Award Date"),
+            r.get("Sub-Award Amount"),
+        ),
+    )
+    raw_primes = _dedupe(raw_primes, lambda r: r.get("Award ID") or id(r))
 
     subawards = []
     for row in raw_subs:

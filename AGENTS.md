@@ -144,7 +144,9 @@ since inference has no gradients or optimizer state.
 ## Commands
 
 ```bash
+ftlab real-fetch                 # pull the USASpending slice, one year at a time
 ftlab real-build                 # build the corpus from hand-written examples
+ftlab masked-build               # build the masked-sub test set
 ftlab train -c configs/real-3arm.yaml
 ftlab arms -c configs/real-3arm.yaml --adapter <ckpt> --out benchmarks/<date>
 ftlab arms --arm d               # the rule baseline: no model, no GPU, seconds
@@ -153,27 +155,63 @@ ftlab arms --arm d               # the rule baseline: no model, no GPU, seconds
 
 ## Current state
 
-The corpus is 51 distinct hand-written examples (~153 rows at 3× repeat), with 8
-examples held out for eval. Eval used to contain **zero** hand-written rows, so
-eval loss measured template reproduction and steered checkpoint selection; the
-split is now over authored examples.
+**The slice covers 2015-2025 in full and did not used to.** `fetch_subawards`
+sorts by date and takes a fixed page budget from one end, so asking it for the
+whole range twice -- once ascending, once descending -- returned 2015 and
+2024-25 and nothing in between. The corpus had 1,354 rows from 2015, 1,654 from
+2025, and a silent eight-year hole, which meant half the relational evidence in
+every company record was a decade stale and 63% of blind rows had to be dropped
+for a true sub with no retrievable record. `real-fetch` now pulls one year at a
+time: 15,516 subawards over 4,710 companies, and that drop rate is 28%.
+
+Ingest also deduplicates now. The old slice carried 231 duplicate rows, one edge
+counted twelve times, all of it inflating teaming counts and record sizes.
+
+The authored corpus is 51 distinct hand-written examples (~153 rows at 3×
+repeat), with 8 examples held out for eval. **Eight of its tests fail against the
+refilled slice** -- the claims cite partner counts and name companies that were
+true of the smaller, duplicate-inflated graph. They are the legacy of the
+fine-tuning path, and they need either repair against the new graph or
+retirement; nothing should be trained on them until one or the other happens.
 
 **The test set is the masked-sub set** (`ftlab masked-build`). A real subaward
 from the blind window has its subcontractor hidden; the arms rank a
 twelve-candidate slate and are scored on recovering it. The key is what
 happened, not what anyone wrote, which is the first time that has been true
-here. 216 instances over 67 primes.
+here. 326 instances over 77 primes.
 
 Read it as two sets, never as one number:
 
-| | n | groupby hit@1 | random hit@1 |
-|---|---|---|---|
-| prior pairings | 128 | 0.445 | 0.039 |
-| **new pairings** | **88** | **0.000** | 0.091 |
+| | n | groupby hit@1 | size sort hit@1 | random hit@1 |
+|---|---|---|---|---|
+| prior pairings | 266 | 0.519 | 0.094 | 0.083 |
+| **new pairings** | **60** | **0.000** | **0.150** | 0.083 |
 
-The new-pairing half is the experiment. The groupby scores zero there by
-construction, so anything above chance is evidence of something other than
-counting. Report hit@1 and MRR; hit@5 on a twelve-name slate gives a blind draw
-0.394 and flatters every arm.
+The new-pairing half is the experiment: these two firms have no history in
+either direction, so the groupby scores zero there by construction and anything
+above chance is evidence of something other than counting.
+
+**Clear all three floors before claiming anything.** The groupby is not the only
+strategy that needs no reasoning. Distractors used to be drawn from the head of
+an activity ranking, which made every one of them a large firm and the answer
+the small one -- sorting a slate by the record size printed in its own prompt
+scored hit@1 0.282 / MRR 0.459, above the groupby, and above it on the
+new-pairing half specifically. `build_slate` now matches candidates on size, and
+`scoreboard` reports `size_` and `name_` rows beside `rule_` so a regression
+cannot hide. Over sixteen seeds the size sort sits at 0.091 against chance's
+0.083; the single-seed 0.150 in the table above is noise at n=60. Name length is
+a real residual at 0.101 and is reported rather than engineered away.
+
+Report hit@1 and MRR. hit@5 on a twelve-name slate gives a blind draw 0.417 and
+flatters every arm. Random floors are closed-form, not sampled -- one
+permutation per item once put the prior-pairings floor 1.8 sd low and turned a
+true 5.3x ratio into a reported 11.4x.
+
+**n=60 is the binding constraint on the new-pairing half.** Beating chance on it
+is well powered (92% at a true hit@1 of 0.20), but a paired McNemar test between
+two arms detects a +8 point gain only about half the time; 126 instances are
+needed for 80%. The corpus is not the limit -- the blind window is. At
+`TRAIN_UNTIL = 2024-06-30` the set yields 305 new pairings over 123 primes with
+12,906 training rows still behind the split. Moving it is a live decision.
 
 `blind.jsonl.stale-generated` is the retired generated set. Do not use it.

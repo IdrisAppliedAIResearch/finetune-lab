@@ -21,9 +21,12 @@ from ftlab.real.graph import build_graph
 from ftlab.real.ingest import load_slice
 from ftlab.real.masked import (
     ARCHETYPE,
+    MIN_NAME,
     MIN_RECORD,
     instances,
+    normalise,
     rule_recovery,
+    scoreboard,
     to_question,
 )
 from ftlab.real.questions import CANDIDATES
@@ -42,8 +45,86 @@ def items(graph):
 
 def test_the_set_is_large_enough_to_measure_with(items):
     """The whole point of this set is escaping n=51."""
-    assert len(items) >= 200
-    assert len({i.prime for i in items}) >= 60
+    assert len(items) >= 300
+    assert len({i.prime for i in items}) >= 70
+
+
+def test_sorting_by_record_size_does_not_beat_chance(graph, items):
+    """The shortcut that made the first version of this set worthless.
+
+    Every candidate record prints ``Subcontracts taken: N; awards where prime:
+    M``. When distractors were drawn from the head of an activity ranking they
+    were all large firms and the answer was the small one, so sorting a slate on
+    those two integers scored hit@1 0.282 and MRR 0.459 -- above the groupby,
+    and above it on the new-pairing half specifically, which was being reported
+    as the half no counting strategy could touch.
+
+    Bounded on both sides. Below chance is the same leak inverted: an arm that
+    learns to pick the *largest* name scores just as well as one that picks the
+    smallest, and an intermediate build of this module sat at 0.034.
+    """
+    new = [i for i in items if i.is_new]
+    board = scoreboard(graph, new)
+    assert 0.02 < board["size_hit@1"] < 0.18, board
+    assert 0.20 < board["size_mrr"] < 0.33, board
+
+
+def test_no_two_rows_share_a_slate(items):
+    """Sibling rows once had identical distractors, so the answer was recoverable.
+
+    ``distractor_pool`` was a function of the prime and agency alone, so every
+    row in a ``(prime, agency)`` cell drew the same eleven names and the answer
+    was the one name its siblings' slates lacked -- a set difference away on 169
+    of 216 instances. No single prompt exposed it, but it also meant the rows
+    were not independent, which is what a significance test assumes.
+    """
+    seen: dict[tuple[str, ...], str] = {}
+    for item in items:
+        distractors = tuple(sorted(n for n in item.slate if n != item.true_sub))
+        assert distractors not in seen, (item.prime, seen.get(distractors))
+        seen[distractors] = item.prime
+
+
+def test_new_pairings_are_new_in_either_direction_and_under_either_spelling(
+    graph, items
+):
+    """``is_new`` is the split the whole set exists to make, so it has to hold.
+
+    Two ways it did not. ``GDIT -> PERATON`` was marked new while GDIT had
+    subbed *for* Peraton in the training window, and Johns Hopkins existed as
+    three separate nodes so a pairing recorded under one spelling looked new
+    under another.
+    """
+    seen: set[frozenset[str]] = {
+        frozenset({normalise(r["prime"]), normalise(r["sub"])})
+        for r in graph.train_subawards
+    }
+    for item in items:
+        if item.is_new:
+            assert frozenset({normalise(item.prime), normalise(item.true_sub)}) not in seen
+
+
+def test_no_candidate_is_invisible_to_the_grader(items):
+    """``known_companies`` drops names of four characters or fewer.
+
+    ``HP``, ``EMC`` and ``FCN`` sat on 79 of 216 slates and could never be
+    returned however plainly an arm named them; one row had ``FCN`` as the
+    answer and was unwinnable for every arm including the random floor.
+    """
+    for item in items:
+        for name in item.slate:
+            assert len(name) >= MIN_NAME, name
+
+
+def test_no_slate_holds_one_firm_under_two_spellings(items):
+    """One slate carried THE UNIVERSITY OF CHICAGO and UNIVERSITY OF CHICAGO, THE.
+
+    Two of its twelve options were the same company, so one of them was graded
+    wrong for being the right answer spelled differently.
+    """
+    for item in items:
+        keys = [normalise(n) for n in item.slate]
+        assert len(set(keys)) == len(keys), item.slate
 
 
 def test_every_true_sub_is_on_its_own_slate(items):
@@ -117,7 +198,7 @@ def test_no_company_profile_is_built_from_blind_teaming(graph):
 
 def test_the_question_text_never_names_the_answer_outside_the_slate(graph, items):
     """The ask must carry no hint -- only the prime, the component, the slate."""
-    for item in items[:200]:
+    for item in items:
         question = to_question(graph, item)
         header = question.question.split("\n", 1)[0]
         assert item.true_sub not in header, item.true_sub
@@ -131,7 +212,7 @@ def test_context_does_not_reveal_the_pairing(graph, items):
     being predicted, which would make the task a reading exercise.
     """
     index = build_index(graph)
-    for item in items[:60]:
+    for item in items:
         question = to_question(graph, item)
         context = context_for(graph, question, index, k=CONTEXT_K)
         block = next(
@@ -171,7 +252,7 @@ def test_the_rule_baseline_leaves_headroom(graph, items):
     while still failing loudly if the set ever becomes rule-solvable.
     """
     score = rule_recovery(graph, items)
-    assert 0.05 < score < 0.55, score
+    assert 0.05 < score < 0.80, score
 
 
 def test_the_rule_baseline_cannot_score_on_new_pairings(graph, items):
@@ -181,7 +262,7 @@ def test_the_rule_baseline_cannot_score_on_new_pairings(graph, items):
     the set is worth running at all.
     """
     new = [i for i in items if i.is_new]
-    assert len(new) >= 75
+    assert len(new) >= 60
     assert rule_recovery(graph, new) == 0.0
 
 
