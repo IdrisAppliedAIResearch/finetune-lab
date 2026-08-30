@@ -10,25 +10,25 @@ Here the key is what actually happened. Take a subaward from the blind window,
 hide the subcontractor, present the prime with a slate of candidates, and score
 whether the true sub is named. No opinion is involved and no authoring is
 needed, so the set is as large as the record allows rather than as large as
-someone had time to write: 326 instances over 77 primes, against the 51 the
+someone had time to write: 872 instances over 162 primes, against the 51 the
 authored set reached.
 
 The set splits in two and the halves are different tasks. ``scoreboard``
 reports them separately for that reason:
 
-* **266 prior pairings**, where the prime had used this firm before. The
-  groupby gets hit@1 0.519 and hit@5 0.823. Little headroom, and a strong arm
+* **587 prior pairings**, where the prime had used this firm before. The
+  groupby gets hit@1 0.487 and hit@5 0.840. Little headroom, and a strong arm
   here has mostly demonstrated it can read a partner list.
-* **60 new pairings**, where these two firms have no history in either
-  direction. The groupby scores **exactly 0 by construction**. This is the
-  subset that separates reasoning from counting, and it is the only number in
-  this project that can answer the question it was started for.
+* **285 new pairings** over 121 primes, where these two firms have no history in
+  either direction. The groupby scores **exactly 0 by construction**. This is
+  the subset that separates reasoning from counting, and it is the only number
+  in this project that can answer the question it was started for.
 
-Sixty is not enough to compare two arms with. Beating chance on it is well
-powered, but a paired test between arms detects a +8 point gain about half the
-time, and 126 instances are needed for that at 80%. The blind window is the
-binding constraint, not the corpus: moving ``TRAIN_UNTIL`` back a year yields
-305 new pairings over 123 primes while still leaving 12,906 training rows.
+285 is enough to compare two arms with, which 60 was not. A paired McNemar test
+detects a +8 point gain with 0.99 power and a +5 point gain with 0.79; at the
+old cutoff those were 0.40 and 0.17. That is what moving ``TRAIN_UNTIL`` to
+2024-06-30 bought, and it only became possible once the corpus was refilled --
+before that, moving the cut back left nothing behind it but 2015.
 
 **Three floors, and an arm has to clear all of them.** Reporting only the
 groupby is what hid the worst defect this set has had. Distractors were drawn
@@ -37,12 +37,15 @@ the answer was the small one, and sorting a slate by the record size printed in
 its own prompt scored hit@1 0.282 / MRR 0.459 -- above the groupby, and above it
 on the new-pairing half specifically, the half being advertised as the one no
 counting strategy could touch. ``build_slate`` now matches candidates on size
-and draws the answer's rank among them, which puts that sort back at chance
-(0.091 against 0.083 over sixteen seeds). ``size_ranking`` stays on the
+and draws the answer's rank among them, which takes that sort down to hit@1
+0.09-0.10 against chance's 0.083. The residual is intrinsic -- raising
+``MIN_RECORD`` to 3, 4 or 5 leaves it unchanged at 0.091 while costing a quarter
+of the set -- and sorting the other way round scores 0.079, below chance, so
+there is no inverse of it to exploit either. ``size_ranking`` stays on the
 scoreboard so a regression cannot hide again. ``name_ranking`` is there for the
-residual nobody can remove: research foundations have long names and take a lot
-of subcontracts, so name length is a real correlate of the answer and sits at
-hit@1 0.101.
+same reason: research foundations have long names and take a lot of
+subcontracts, so name length is a real correlate of the answer and sits at hit@1
+0.107.
 
 Beware hit@5 on a twelve-name slate: a blind draw scores 0.417, so the metric
 flatters everything. hit@1 and MRR are the ones to read, and the random floor
@@ -61,11 +64,12 @@ What the set does not buy, and these bound every number that comes out of it:
   marked wrong may have done the work unreported. That noise is one-directional
   and it depresses every arm equally.
 
-Of 686 blind rows, 331 survive to a slate: 157 are the same pairing recurring
-across mods, 191 have a true sub with no retrievable record, 4 name a company
-too short for the grader to see, and 3 have the pairing already visible in a
-record. The 191 were 63% of the window before the corpus was refilled to cover
-2016-2023; they are 28% now.
+Rows are dropped for a true sub with no retrievable record, for being the same
+pairing recurring across mods, for naming a company too short for the grader to
+see, and -- on the new half only -- for having the pairing already visible in a
+record. Unretrievable subs were 63% of the blind window before the corpus was
+refilled to cover 2016-2023; they are 28% now, which is most of why the set
+grew.
 """
 
 

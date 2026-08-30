@@ -20,10 +20,14 @@ import collections
 from dataclasses import dataclass, field
 from typing import Any
 
-# Subawards dated after this are blind. Chosen to leave roughly two-thirds of
-# the recent teaming for training and a third sealed, while keeping the blind
-# period long enough (six months) that it is not one unusual quarter.
-TRAIN_UNTIL = "2025-06-30"
+# Subawards dated after this are blind. Moved back a year once the slice was
+# refilled to cover 2016-2023: at 2025-06-30 the blind window held 686 rows and
+# yielded only 60 new pairings, and a paired comparison between two arms needs
+# 126 to detect an eight-point gain at 80% power. An eighteen-month blind window
+# yields 305 and still leaves 12,906 rows of teaming behind the split, which the
+# gapped corpus could not have done -- moving the cut back then left nothing but
+# 2015.
+TRAIN_UNTIL = "2024-06-30"
 
 # Work whose description says something. Below this, the text is an id, a mod
 # number, or the word "subcontract", and a model reading it learns nothing.
@@ -113,6 +117,14 @@ def build_graph(
     """Assemble company profiles, splitting subawards into train and blind."""
     train = [r for r in subawards if r["date"] and r["date"] <= train_until]
     blind = [r for r in subawards if r["date"] and r["date"] > train_until]
+
+    # Prime awards were never filtered, so 126 of them start inside the blind
+    # window and their counts and descriptions reached the records regardless.
+    # No prime-to-sub edge lives in this table, so it was not an answer leak,
+    # but it did make the docstring above untrue.
+    prime_awards = [
+        a for a in prime_awards if not a.get("start") or a["start"] <= train_until
+    ]
 
     companies: dict[str, Company] = {}
 

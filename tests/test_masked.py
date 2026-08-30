@@ -45,8 +45,8 @@ def items(graph):
 
 def test_the_set_is_large_enough_to_measure_with(items):
     """The whole point of this set is escaping n=51."""
-    assert len(items) >= 300
-    assert len({i.prime for i in items}) >= 70
+    assert len(items) >= 700
+    assert len({i.prime for i in items}) >= 140
 
 
 def test_sorting_by_record_size_does_not_beat_chance(graph, items):
@@ -262,7 +262,7 @@ def test_the_rule_baseline_cannot_score_on_new_pairings(graph, items):
     the set is worth running at all.
     """
     new = [i for i in items if i.is_new]
-    assert len(new) >= 60
+    assert len(new) >= 200
     assert rule_recovery(graph, new) == 0.0
 
 

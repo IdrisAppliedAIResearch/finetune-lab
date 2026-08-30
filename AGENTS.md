@@ -178,14 +178,14 @@ retirement; nothing should be trained on them until one or the other happens.
 from the blind window has its subcontractor hidden; the arms rank a
 twelve-candidate slate and are scored on recovering it. The key is what
 happened, not what anyone wrote, which is the first time that has been true
-here. 326 instances over 77 primes.
+here. 872 instances over 162 primes.
 
 Read it as two sets, never as one number:
 
-| | n | groupby hit@1 | size sort hit@1 | random hit@1 |
-|---|---|---|---|---|
-| prior pairings | 266 | 0.519 | 0.094 | 0.083 |
-| **new pairings** | **60** | **0.000** | **0.150** | 0.083 |
+| | n | groupby hit@1 | size sort | name sort | random |
+|---|---|---|---|---|---|
+| prior pairings | 587 | 0.487 | 0.090 | 0.087 | 0.083 |
+| **new pairings** | **285** | **0.000** | **0.098** | 0.098 | 0.083 |
 
 The new-pairing half is the experiment: these two firms have no history in
 either direction, so the groupby scores zero there by construction and anything
@@ -198,20 +198,32 @@ the small one -- sorting a slate by the record size printed in its own prompt
 scored hit@1 0.282 / MRR 0.459, above the groupby, and above it on the
 new-pairing half specifically. `build_slate` now matches candidates on size, and
 `scoreboard` reports `size_` and `name_` rows beside `rule_` so a regression
-cannot hide. Over sixteen seeds the size sort sits at 0.091 against chance's
-0.083; the single-seed 0.150 in the table above is noise at n=60. Name length is
-a real residual at 0.101 and is reported rather than engineered away.
+cannot hide. The size sort now sits at 0.09-0.10 against chance's 0.083. That
+residual is intrinsic -- raising `MIN_RECORD` to 3, 4 or 5 leaves it at 0.091
+while costing a quarter of the set -- and the reverse sort scores 0.079, below
+chance, so there is no inverse to exploit. Name length is a real residual at
+0.107 and is reported rather than engineered away.
 
 Report hit@1 and MRR. hit@5 on a twelve-name slate gives a blind draw 0.417 and
 flatters every arm. Random floors are closed-form, not sampled -- one
 permutation per item once put the prior-pairings floor 1.8 sd low and turned a
 true 5.3x ratio into a reported 11.4x.
 
-**n=60 is the binding constraint on the new-pairing half.** Beating chance on it
-is well powered (92% at a true hit@1 of 0.20), but a paired McNemar test between
-two arms detects a +8 point gain only about half the time; 126 instances are
-needed for 80%. The corpus is not the limit -- the blind window is. At
-`TRAIN_UNTIL = 2024-06-30` the set yields 305 new pairings over 123 primes with
-12,906 training rows still behind the split. Moving it is a live decision.
+**`TRAIN_UNTIL` is 2024-06-30**, moved back from 2025-06-30 to clear the sample
+size a paired comparison needs. The blind window is eighteen months and 12,906
+rows of teaming stay behind the split. Power for a paired McNemar test on the
+new-pairing half:
+
+| gain over the other arm | n=60 (old cut) | n=285 (now) |
+|---|---|---|
+| +4 pts | 0.12 | 0.73 |
+| +5 pts | 0.17 | 0.79 |
+| +8 pts | 0.40 | 0.99 |
+
+**There is still no RL training set.** Every instance here is evaluation. A
+prime-disjoint split of the new-pairing half gives 147 eval rows over 60 primes
+and 138 training rows over 61, with no prime on both sides -- splitting by row
+instead would let a policy memorise a prime's bench and then score on it.
+Nothing has been built or run.
 
 `blind.jsonl.stale-generated` is the retired generated set. Do not use it.
