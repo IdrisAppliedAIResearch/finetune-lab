@@ -146,7 +146,9 @@ since inference has no gradients or optimizer state.
 ```bash
 ftlab real-fetch                 # pull the USASpending slice, one year at a time
 ftlab real-build                 # build the corpus from hand-written examples
-ftlab masked-build               # build the masked-sub test set
+ftlab masked-build               # build the masked-sub set and its two halves
+ftlab masked-run -c real-3arm.yaml                    # measure an arm
+ftlab masked-train -c real-3arm.yaml                  # GRPO on the training half
 ftlab train -c configs/real-3arm.yaml
 ftlab arms -c configs/real-3arm.yaml --adapter <ckpt> --out benchmarks/<date>
 ftlab arms --arm d               # the rule baseline: no model, no GPU, seconds
@@ -242,6 +244,40 @@ which one makes the floor look clean is picking the test set on a statistic, and
 that is the family of mistake this set exists to stop. `scoreboard` emits the
 floors for whatever split is run, so use those.
 
-Nothing has been trained or run.
+## Reinforcement learning on this set
+
+The reward is **verified, not modelled**: `reward.score` is the reciprocal rank
+of the true sub in the model's ranking, less 0.1 per off-slate name, and -0.2 for
+an answer with no ranking in it. Reciprocal rank rather than accuracy because a
+policy that moves the answer from fifth to second has improved and accuracy
+cannot see it -- on a twelve-name slate a fresh policy is wrong nearly every
+time and a group of rollouts would have nothing to separate it by.
+
+**The reward ignores the tier labels, deliberately.** Tier 3+ means the firm
+subbed for this prime before, so on the new-pairing half no correct answer is
+ever tier 3 and 37% are tier 1 -- classified as traps. A tier reward would train
+the policy to avoid the right answer.
+
+**Read the answer from the channel marker, never from the raw text.** Gemma 4
+emits `<|channel>thought ... <channel|>` and then answers, and `real-3arm.yaml`
+sets `enable_thinking: true`. `generate_many` used to decode with
+`skip_special_tokens=True`, which deleted that boundary, so the whole reasoning
+trace arrived as one blob and got scored as a ranking -- the parser found the
+model's numbered enumeration of the candidates, in slate order, and scored it at
+exactly chance. `generate_many` now takes `preserve_special`, and `rollout` splits
+on the marker before scoring.
+
+**Thinking is off in `rollout.run` by default, and that is measured.** With it on
+this base model does not close its reasoning channel: 14 of 16 answers hit a
+1,600-token budget still deliberating. Suppressed, the same model answers in
+under 700 tokens with no truncation and no silent answers, and a 16-item run
+takes 47 seconds instead of four minutes. It measures ranking, not reasoning --
+turn it on for a reasoning run, budget far more, watch `truncated_rate`, and keep
+the setting identical across every arm being compared.
+
+`masked-train` runs GRPO with prompts pre-rendered exactly as `masked-run`
+renders them. `beta` is 0 so no reference model sits beside the policy; raise it
+only with the VRAM to spare. Checkpoints are selected on training reward and the
+eval half is run once, at the end.
 
 `blind.jsonl.stale-generated` is the retired generated set. Do not use it.
