@@ -158,7 +158,22 @@ examples held out for eval. Eval used to contain **zero** hand-written rows, so
 eval loss measured template reproduction and steered checkpoint selection; the
 split is now over authored examples.
 
-**Open:** the test set. `blind.jsonl` was produced by the deleted generator and
-is stale — it must be replaced by hand-written questions whose answers are
-derivable from the supplied records, with arm D run against them as the
-rule-solvability check.
+**The test set is the masked-sub set** (`ftlab masked-build`). A real subaward
+from the blind window has its subcontractor hidden; the arms rank a
+twelve-candidate slate and are scored on recovering it. The key is what
+happened, not what anyone wrote, which is the first time that has been true
+here. 216 instances over 67 primes.
+
+Read it as two sets, never as one number:
+
+| | n | groupby hit@1 | random hit@1 |
+|---|---|---|---|
+| prior pairings | 128 | 0.445 | 0.039 |
+| **new pairings** | **88** | **0.000** | 0.091 |
+
+The new-pairing half is the experiment. The groupby scores zero there by
+construction, so anything above chance is evidence of something other than
+counting. Report hit@1 and MRR; hit@5 on a twelve-name slate gives a blind draw
+0.394 and flatters every arm.
+
+`blind.jsonl.stale-generated` is the retired generated set. Do not use it.

@@ -97,8 +97,20 @@ def cmd_real_build(args: argparse.Namespace) -> int:
     stats = build(
         data_dir=args.data or "data/real",
         out_dir=args.out or "data/real_corpus",
-        paraphrases=args.paraphrases,
         dropout=args.dropout,
+    )
+    print(json.dumps(stats, indent=2))
+    return 0
+
+
+def cmd_masked_build(args: argparse.Namespace) -> int:
+    """Build the masked-sub evaluation set from observed teaming."""
+    from .real.masked import build
+
+    stats = build(
+        data_dir=args.data or "data/real",
+        out_path=args.out or "data/real_corpus/masked_sub.jsonl",
+        seed=args.seed,
     )
     print(json.dumps(stats, indent=2))
     return 0
@@ -192,16 +204,23 @@ def build_parser() -> argparse.ArgumentParser:
     real_build.add_argument("--data", help="cached slice dir (default data/real)")
     real_build.add_argument("--out", help="output dir (default data/real_corpus)")
     real_build.add_argument(
-        "--paraphrases", type=int, default=4,
-        help="phrasings per fact; knowledge that does not survive rewording is "
-        "not knowledge, and one phrasing per fact never tests it",
-    )
-    real_build.add_argument(
         "--dropout", type=float, default=0.4,
         help="share of training examples with the library records withheld, so "
         "the same adapter can answer closed-book (arm B)",
     )
     real_build.set_defaults(func=cmd_real_build)
+
+    masked = sub.add_parser(
+        "masked-build",
+        help="build the masked-sub eval: hide a real subcontract, ask who filled it",
+    )
+    masked.add_argument("--data", help="cached slice dir (default data/real)")
+    masked.add_argument("--out", help="output jsonl (default data/real_corpus/masked_sub.jsonl)")
+    masked.add_argument(
+        "--seed", type=int, default=0,
+        help="shuffles the slate; the answer's position must not be learnable",
+    )
+    masked.set_defaults(func=cmd_masked_build)
 
     arms = sub.add_parser(
         "arms", help="run the arm benchmark (rule, base+RAG, tuned, tuned+RAG)"
