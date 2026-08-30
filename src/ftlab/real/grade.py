@@ -23,7 +23,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-TOP_K = 4
+from .questions import TOP_K
+
+# TOP_K is imported rather than declared. It was 4 here while questions.py set
+# it to 5 and every slate question ends "Rank your top five", so the harness
+# graded hit@4 on a question that asked for five and the two constants drifted
+# apart unnoticed. With one gold that also capped precision_at_k at 0.25 for a
+# perfect answer.
 
 # Headings the corpus uses to separate picks from rejections. An answer with no
 # heading is read as recommending everything it names, which is the

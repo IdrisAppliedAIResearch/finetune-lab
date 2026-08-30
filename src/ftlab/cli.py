@@ -130,6 +130,31 @@ def cmd_masked_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_masked_run(args: argparse.Namespace) -> int:
+    """Generate and score answers for the masked-sub split."""
+    from .real.rollout import load_split, run, save
+
+    cfg = _load_config(args)
+    items = load_split(args.split)
+    if args.new_only:
+        items = [i for i in items if i["meta"].get("is_new")]
+    if args.limit:
+        items = items[: args.limit]
+    rollouts = run(
+        cfg,
+        items,
+        label=args.label or ("tuned + retrieval" if args.adapter else "base + retrieval"),
+        adapter=args.adapter,
+        max_new_tokens=args.max_new_tokens,
+        temperature=args.temperature,
+        batch_size=args.batch_size,
+        thinking=args.thinking,
+    )
+    summary = save(rollouts, args.out or (cfg.run_dir / "masked"))
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
 def cmd_arms(args: argparse.Namespace) -> int:
     """Run the three-arm benchmark and print the comparison table."""
     from .real.arms import run
@@ -248,6 +273,38 @@ def build_parser() -> argparse.ArgumentParser:
         help="shuffles the slate; the answer's position must not be learnable",
     )
     masked.set_defaults(func=cmd_masked_build)
+
+    masked_run = sub.add_parser(
+        "masked-run", help="generate and score answers on the masked-sub split"
+    )
+    _add_config_args(masked_run)
+    masked_run.add_argument(
+        "--split", default="data/real_corpus/masked_sub.eval.jsonl",
+        help="which half to run; nothing may be trained on the eval half",
+    )
+    masked_run.add_argument("--adapter", help="adapter dir; omit for the base model")
+    masked_run.add_argument("--label", help="what to call this arm in the summary")
+    masked_run.add_argument(
+        "--new-only", action="store_true",
+        help="restrict to new pairings, the half the groupby cannot score on",
+    )
+    masked_run.add_argument("--limit", type=int, help="first N items, for a smoke run")
+    masked_run.add_argument(
+        "--thinking", action="store_true",
+        help="let the model use its reasoning channel; off by default because "
+        "this base model does not close it -- 14 of 16 answers hit a 1600-token "
+        "budget still deliberating. Raise --max-new-tokens a long way if you "
+        "turn it on, and use the same setting for every arm you compare.",
+    )
+    masked_run.add_argument(
+        "--max-new-tokens", type=int, default=900,
+        help="the ranking comes last, so a truncated answer scores as silence; "
+        "watch no_answer_rate in the summary",
+    )
+    masked_run.add_argument("--temperature", type=float, default=0.0)
+    masked_run.add_argument("--batch-size", type=int, default=8)
+    masked_run.add_argument("--out", help="where to write generations and summary")
+    masked_run.set_defaults(func=cmd_masked_run)
 
     arms = sub.add_parser(
         "arms", help="run the arm benchmark (rule, base+RAG, tuned, tuned+RAG)"

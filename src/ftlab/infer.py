@@ -43,6 +43,30 @@ RETRIEVE_K = 12
 TRUNCATION_MARK = "…[TRUNCATED]"
 
 
+def _decode(tokenizer: Any, completion: Any, preserve: tuple[str, ...] = ()) -> str:
+    """Decoded text, optionally keeping some special tokens.
+
+    ``skip_special_tokens=True`` is right for almost everything and was wrong
+    for one thing that mattered. Gemma 4 separates reasoning from the answer
+    with channel tokens -- the reply is ``<|channel>thought ... <channel|>``
+    followed by the answer -- and stripping them deleted the only boundary
+    there was. Every downstream reader then saw one undivided blob of the
+    model's thinking and scored it as the answer, which is not a parsing
+    inconvenience: it means a benchmark measured the reasoning trace and
+    reported it as a ranking.
+
+    Named tokens are preserved and the rest are still dropped, so a caller asks
+    for the boundary it needs rather than getting all the scaffolding back.
+    """
+    if not preserve:
+        return tokenizer.decode(completion, skip_special_tokens=True).strip()
+    text = tokenizer.decode(completion, skip_special_tokens=False)
+    for token in tokenizer.all_special_tokens:
+        if token not in preserve:
+            text = text.replace(token, "")
+    return text.strip()
+
+
 @torch.no_grad()
 def generate(
     model: Any,
@@ -120,6 +144,7 @@ def generate_many(
     temperature: float = 0.0,
     batch_size: int = 8,
     progress: bool = True,
+    preserve_special: tuple[str, ...] = (),
 ) -> list[str]:
     """Generate for many questions at once.
 
@@ -172,7 +197,7 @@ def generate_many(
             prompt_len = encoded["input_ids"].shape[-1]
             for row in generated:
                 completion = row[prompt_len:]
-                text = tokenizer.decode(completion, skip_special_tokens=True).strip()
+                text = _decode(tokenizer, completion, preserve_special)
                 # Mark answers that ran out of budget rather than finishing.
                 # Inferring this from the text is unreliable: a complete
                 # bulleted list ends without punctuation, which a
