@@ -24,6 +24,10 @@ reports them separately for that reason:
   the subset that separates reasoning from counting, and it is the only number
   in this project that can answer the question it was started for.
 
+``build`` writes the whole set and a prime-disjoint train/eval split beside
+it: 338 training rows over 84 primes and 534 evaluation rows over 78, sharing no
+prime. 156 of the evaluation rows are new pairings.
+
 285 is enough to compare two arms with, which 60 was not. A paired McNemar test
 detects a +8 point gain with 0.99 power and a +5 point gain with 0.79; at the
 old cutoff those were 0.40 and 0.17. That is what moving ``TRAIN_UNTIL`` to
@@ -593,49 +597,131 @@ def scoreboard(graph: TeamingGraph, items: list[Instance]) -> dict[str, Any]:
     return out
 
 
+# How many new pairings the eval half needs. A paired comparison between two
+# arms wants 126 to detect an eight-point gain at 80% power; this leaves a
+# margin for rows lost to a reingest without handing the training half so little
+# that there is nothing to learn from.
+EVAL_NEW_TARGET = 147
+
+
+def split_by_prime(
+    items: list[Instance], seed: int = 0, eval_new_target: int = EVAL_NEW_TARGET
+) -> tuple[list[Instance], list[Instance]]:
+    """Divide the set into training and evaluation halves, sharing no prime.
+
+    Split by prime rather than by row, which is the whole point. A prime appears
+    on a median of three rows here and up to thirteen, and its bench is the same
+    on all of them: with the same prime on both sides, a policy can learn who
+    RESEARCH TRIANGLE INSTITUTE hires from the training rows and then score on
+    the evaluation rows without generalising anything. That is the same class of
+    leak as every other one this set has had, and it would look like a result.
+
+    Primes are shuffled and taken for evaluation until it holds
+    ``eval_new_target`` new pairings; the rest train. Both halves carry prior
+    pairings too, because a policy that never sees one has not been taught that
+    incumbency counts at all -- it is a real signal, just not the only one, and
+    ``scoreboard`` reports the two kinds separately on whichever half is being
+    read.
+
+    Returns ``(train, eval)``.
+    """
+    by_prime: dict[str, list[Instance]] = collections.defaultdict(list)
+    for item in items:
+        by_prime[item.prime].append(item)
+
+    primes = sorted(by_prime)
+    random.Random(seed).shuffle(primes)
+
+    held: list[Instance] = []
+    train: list[Instance] = []
+    new_held = 0
+    for prime in primes:
+        rows = by_prime[prime]
+        if new_held < eval_new_target:
+            held.extend(rows)
+            new_held += sum(1 for r in rows if r.is_new)
+        else:
+            train.extend(rows)
+    return train, held
+
+
 def build(
     data_dir: str | Path = "data/real",
     out_path: str | Path = "data/real_corpus/masked_sub.jsonl",
     seed: int = 0,
 ) -> dict[str, Any]:
+    """Write the whole set and the two prime-disjoint halves beside it.
+
+    Three files, because the whole set is the thing to read when characterising
+    the task and the halves are the thing to run against. ``masked_sub.jsonl``
+    is everything; ``masked_sub.train.jsonl`` and ``masked_sub.eval.jsonl``
+    share no prime, and nothing may be trained on the second.
+    """
     slice_ = load_slice(data_dir)
     graph = build_graph(slice_.prime_awards, slice_.subawards)
     index = build_index(graph)
 
     items = instances(graph, seed=seed)
-    records = []
-    for item in items:
+
+    def record_for(item: Instance) -> dict[str, Any]:
         question = to_question(graph, item)
         record = question.to_record()
         record["context"] = context_for(graph, question, index, k=CONTEXT_K)
-        records.append(record)
+        return record
+
+    records = {id(i): record_for(i) for i in items}
 
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(
-        "\n".join(json.dumps(r, ensure_ascii=False) for r in records) + "\n",
-        encoding="utf-8",
-    )
 
-    new = [i for i in items if i.is_new]
-    prior = [i for i in items if not i.is_new]
+    def write(path: Path, rows: list[Instance]) -> None:
+        path.write_text(
+            "\n".join(json.dumps(records[id(r)], ensure_ascii=False) for r in rows)
+            + "\n",
+            encoding="utf-8",
+        )
+
+    train, held = split_by_prime(items, seed=seed)
+    write(out, items)
+    train_path = out.with_suffix(".train.jsonl")
+    eval_path = out.with_suffix(".eval.jsonl")
+    write(train_path, train)
+    write(eval_path, held)
+
+    def report(rows: list[Instance]) -> dict[str, Any]:
+        new = [i for i in rows if i.is_new]
+        prior = [i for i in rows if not i.is_new]
+        return {
+            "instances": len(rows),
+            "distinct_primes": len({i.prime for i in rows}),
+            # Split every time. The two kinds are different tasks: on prior
+            # pairings the groupby is a legitimate strategy and nearly solves
+            # it, on new ones it cannot score at all. A single blended number
+            # hides exactly the thing the set was built to expose.
+            "all": scoreboard(graph, rows),
+            "new_pairings": scoreboard(graph, new),
+            "prior_pairings": scoreboard(graph, prior),
+        }
+
+    shared = {i.prime for i in train} & {i.prime for i in held}
     return {
         "path": str(out),
-        "instances": len(items),
-        "distinct_primes": len({i.prime for i in items}),
-        # Split every time. The two halves are different tasks: on prior
-        # pairings the groupby is a legitimate strategy and nearly solves it,
-        # on new ones it cannot score at all. A single blended number hides
-        # exactly the thing the set was built to expose.
-        "all": scoreboard(graph, items),
-        "new_pairings": scoreboard(graph, new),
-        "prior_pairings": scoreboard(graph, prior),
+        "train_path": str(train_path),
+        "eval_path": str(eval_path),
+        # Asserted rather than reported: a shared prime is the leak this split
+        # exists to prevent, and it must never be something to notice later in
+        # a stats blob.
+        "primes_on_both_sides": len(shared),
+        "whole_set": report(items),
+        "train": report(train),
+        "eval": report(held),
     }
 
 
 __all__ = [
     "ARCHETYPE",
     "Instance",
+    "EVAL_NEW_TARGET",
     "build",
     "build_slate",
     "instances",
@@ -646,5 +732,6 @@ __all__ = [
     "rule_recovery",
     "scoreboard",
     "size_ranking",
+    "split_by_prime",
     "to_question",
 ]

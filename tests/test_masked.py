@@ -27,6 +27,7 @@ from ftlab.real.masked import (
     normalise,
     rule_recovery,
     scoreboard,
+    split_by_prime,
     to_question,
 )
 from ftlab.real.questions import CANDIDATES
@@ -285,3 +286,74 @@ def test_no_slate_name_contains_another(items):
             for b in names:
                 if a is not b:
                     assert not (a in b and a != b), (a, b)
+
+
+def test_the_split_shares_no_prime(items):
+    """The whole reason to split by prime rather than by row.
+
+    A prime appears on up to thirteen rows and its bench is the same on all of
+    them. With the same prime on both sides a policy can learn who it hires from
+    the training rows and score on the evaluation rows having generalised
+    nothing -- and that would read as a result.
+    """
+    train, held = split_by_prime(items)
+    assert {i.prime for i in train} & {i.prime for i in held} == set()
+
+
+def test_the_split_loses_nothing_and_duplicates_nothing(items):
+    train, held = split_by_prime(items)
+    assert len(train) + len(held) == len(items)
+    assert {id(i) for i in train} | {id(i) for i in held} == {id(i) for i in items}
+
+
+def test_the_eval_half_is_big_enough_to_compare_two_arms_on(items):
+    """126 new pairings detect an eight-point paired gain at 80% power.
+
+    Below that the comparison is a coin flip, which is what every arm benchmark
+    this project has run so far has been.
+    """
+    _, held = split_by_prime(items)
+    assert sum(1 for i in held if i.is_new) >= 126
+
+
+def test_the_training_half_is_worth_training_on(items):
+    _, held = split_by_prime(items)
+    train, _ = split_by_prime(items)
+    assert sum(1 for i in train if i.is_new) >= 100
+    assert len({i.prime for i in train}) >= 40
+
+
+def test_both_halves_carry_prior_pairings(items):
+    """A policy that never sees one has not been taught incumbency counts.
+
+    It is a real signal, just not the only one, and the two kinds are always
+    scored apart so it cannot quietly become the whole result.
+    """
+    train, held = split_by_prime(items)
+    assert any(not i.is_new for i in train)
+    assert any(not i.is_new for i in held)
+
+
+def test_the_split_is_deterministic(items):
+    a = split_by_prime(items, seed=3)
+    b = split_by_prime(items, seed=3)
+    assert [i.true_sub for i in a[0]] == [i.true_sub for i in b[0]]
+    assert [i.true_sub for i in a[1]] == [i.true_sub for i in b[1]]
+
+
+def test_the_groupby_still_cannot_score_on_the_eval_half(graph, items):
+    """The property the eval half exists for has to survive the split."""
+    _, held = split_by_prime(items)
+    assert rule_recovery(graph, [i for i in held if i.is_new]) == 0.0
+
+
+def test_the_content_free_floors_hold_on_the_eval_half(graph, items):
+    """Checked on the half that will actually be reported, not just the whole.
+
+    A slate defect could concentrate in whichever primes land in evaluation, and
+    the whole-set figure would still look clean.
+    """
+    _, held = split_by_prime(items)
+    board = scoreboard(graph, [i for i in held if i.is_new])
+    assert 0.02 < board["size_hit@1"] < 0.18, board
+    assert 0.20 < board["size_mrr"] < 0.33, board

@@ -220,10 +220,28 @@ new-pairing half:
 | +5 pts | 0.17 | 0.79 |
 | +8 pts | 0.40 | 0.99 |
 
-**There is still no RL training set.** Every instance here is evaluation. A
-prime-disjoint split of the new-pairing half gives 147 eval rows over 60 primes
-and 138 training rows over 61, with no prime on both sides -- splitting by row
-instead would let a policy memorise a prime's bench and then score on it.
-Nothing has been built or run.
+**`masked-build` writes three files.** `masked_sub.jsonl` is everything;
+`masked_sub.train.jsonl` and `masked_sub.eval.jsonl` are a prime-disjoint split
+and **nothing may be trained on the second**.
+
+| | rows | primes | new pairings | prior |
+|---|---|---|---|---|
+| train | 338 | 84 | 129 | 209 |
+| eval | 534 | 78 | **156** | 378 |
+
+Split by prime, not by row. A prime appears on up to thirteen rows and its bench
+is the same on all of them, so the same prime on both sides lets a policy learn
+who RESEARCH TRIANGLE INSTITUTE hires from training and then score on evaluation
+having generalised nothing.
+
+**Compare an arm against its own split's floors, never against 0.083.** On the
+eval half the size sort scores **0.141**, well above the whole set's 0.098.
+Across fifteen split seeds that figure averages 0.100 (sd 0.019) and seed 0 is
+the highest of them -- kept anyway, because choosing the split seed after seeing
+which one makes the floor look clean is picking the test set on a statistic, and
+that is the family of mistake this set exists to stop. `scoreboard` emits the
+floors for whatever split is run, so use those.
+
+Nothing has been trained or run.
 
 `blind.jsonl.stale-generated` is the retired generated set. Do not use it.
