@@ -27,26 +27,17 @@ import random
 from pathlib import Path
 from typing import Any
 
-from .archetypes import generate_extra
 from .authored import authored_examples
 from .authored_context import context_examples
 from .authored_profiles import profile_examples
 from .graph import TeamingGraph, build_graph
 from .ingest import load_slice
-from .questions import (
-    Question,
-    _agency_short,
-    describe,
-    expand_paraphrases,
-    generate,
-    generate_blind,
-)
-from .variety import general_examples
+from .questions import Question, _agency_short
 
 # Fraction of training examples with the retrieved records withheld, so the same
 # adapter can answer closed-book. Two in five is enough to establish the mode
 # without starving the open-book behaviour that arm A depends on.
-CONTEXT_DROPOUT = 0.4
+CONTEXT_DROPOUT = 0.15
 
 # Records shown when context is supplied. Large enough to cover a full
 # candidate slate: showing 8 records for 12 candidates leaves four that the
@@ -226,144 +217,93 @@ def context_for(
     )
 
 
+
 def build(
     data_dir: str | Path = "data/real",
     out_dir: str | Path = "data/real_corpus",
     seed: int = 42,
-    eval_ratio: float = 0.15,
+    eval_examples: int = 8,
     dropout: float = CONTEXT_DROPOUT,
-    paraphrases: int = 3,
-    general: int = 150,
-    authored_repeat: int = 8,
-    authored_context_repeat: int = 8,
-    authored_profile_repeat: int = 8,
+    authored_repeat: int = 3,
 ) -> dict[str, Any]:
+    """Assemble the corpus from hand-written examples only.
+
+    This used to expand thirteen archetypes into ~1,900 templated rows and split
+    them into train and eval. Two things were wrong with that and both are fixed
+    by deleting it.
+
+    The eval split contained *zero* hand-written rows -- the authored families
+    were appended to train after the split -- so eval loss measured how well the
+    model reproduced templates, and checkpoint selection was steered by it. Here
+    the split is over distinct authored examples, so eval measures the behaviour
+    the project is actually trying to teach.
+
+    And every generated gold answer was an observed relationship in the training
+    graph, which taught one rule: the answer is a firm this prime has already
+    hired. Hand-written examples can teach the case that rule gets wrong.
+
+    Splitting on the *example*, not the row: an example is repeated
+    ``authored_repeat`` times, and letting copies straddle the split would put
+    the eval answer verbatim in train.
+    """
     slice_ = load_slice(data_dir)
     graph = build_graph(slice_.prime_awards, slice_.subawards)
-
     search_index = build_index(graph)
     rng = random.Random(seed)
-    # Thirteen archetypes, not seven. The first fine-tune learned to recognise
-    # an archetype and emit its template -- 18 of 18 blind answers took one of
-    # seven shapes -- so a wider set is half the remedy and varied answer shapes
-    # within a type are the other half.
-    base = generate(graph) + generate_extra(graph, seed=seed + 7)
-    questions = expand_paraphrases(base, per_question=paraphrases, seed=seed)
 
-    # Split on the fact, not the sentence. Splitting rows would scatter
-    # paraphrases of one fact across train and eval, and the eval set would then
-    # be asking about facts the model was taught outright -- measuring recall of
-    # a rewording rather than generalisation.
-    groups: dict[str, list[Question]] = {}
-    for item in questions:
-        groups.setdefault(item.meta.get("fact_key", item.question), []).append(item)
-    keys = sorted(groups)
+    # One copy of each distinct example, tagged so the split can group them.
+    singles: list[dict[str, Any]] = [
+        *authored_examples(repeat=1),
+        *context_examples(graph, search_index, repeat=1),
+        *profile_examples(graph, search_index, repeat=1),
+    ]
+    for row in singles:
+        row["meta"]["example_id"] = row["question"][:80]
+
+    keys = sorted({r["meta"]["example_id"] for r in singles})
     rng.shuffle(keys)
+    held_out = set(keys[:eval_examples])
 
-    n_eval = max(1, int(len(keys) * eval_ratio))
-    eval_qs = [q for key in keys[:n_eval] for q in groups[key]]
-    train_qs = [q for key in keys[n_eval:] for q in groups[key]]
-    rng.shuffle(eval_qs)
-    rng.shuffle(train_qs)
-    blind_qs = generate_blind(graph)
+    def expand(rows: list[dict[str, Any]], repeat: int) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for _ in range(repeat):
+            out.extend(json.loads(json.dumps(r)) for r in rows)
+        return out
 
-    def render(items: list[Question], *, drop: bool) -> list[dict[str, Any]]:
-        rows = []
-        for position, item in enumerate(items):
-            record = item.to_record()
-            # Deterministic by position, so a rerun produces the same corpus.
-            withhold = drop and (position % 100) < int(dropout * 100)
-            record["context"] = (
-                "" if withhold else context_for(graph, item, search_index)
-            )
-            record["meta"]["closed_book"] = withhold
-            rows.append(record)
-        return rows
+    train_rows = expand([r for r in singles if r["meta"]["example_id"] not in held_out],
+                        authored_repeat)
+    eval_rows = [r for r in singles if r["meta"]["example_id"] in held_out]
+
+    # Context dropout, deterministic by position so a rebuild is reproducible.
+    # Far lower than the 0.4 this used to run at: closed-book answering measured
+    # 0.279 against a 0.369 random floor, so 43% of the corpus was training a
+    # mode that performs worse than guessing. Enough is kept for arm B to exist
+    # as a control, and no more.
+    for position, row in enumerate(train_rows):
+        if row["context"] and (position % 100) < int(dropout * 100):
+            row["context"] = ""
+            row["meta"]["closed_book"] = True
+
+    rng.shuffle(train_rows)
 
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    written = {
-        "train.jsonl": render(train_qs, drop=True),
-        "eval.jsonl": render(eval_qs, drop=True),
-        # The blind set is served both ways so arms A and B are asked the same
-        # questions; the arm decides whether the context is used.
-        "blind.jsonl": render(blind_qs, drop=False),
-    }
-    # Hand-written examples, repeated. Few in number and carrying the style the
-    # generated bulk cannot: answers that vary in shape, that decline when the
-    # records do not settle a question, and that correct a question's premise.
-    # Repetition is the cheap way to give fifteen good examples weight against
-    # a thousand templated ones -- and unlike a repeated template, each copy is
-    # of prose that was actually reasoned.
-    if authored_repeat:
-        written["train.jsonl"] = [
-            *written["train.jsonl"],
-            *authored_examples(repeat=authored_repeat),
-        ]
-
-    # The same thing again with the records attached. Those above are all
-    # closed-book, which aimed every hand-written row at arm B -- the arm that
-    # scored below the random floor -- and left arm A learning open-book
-    # behaviour from generated templates alone. These carry a real context
-    # block and reason over it, including the case the generated set cannot
-    # produce: a record that is in the library and not on the slate.
-    if authored_context_repeat:
-        written["train.jsonl"] = [
-            *written["train.jsonl"],
-            *context_examples(graph, search_index, repeat=authored_context_repeat),
-        ]
-
-    # Record-reading profiles. The slate examples teach choosing between named
-    # candidates; these teach what the fields in a retrieved record mean, which
-    # is the only part that transfers to a firm the model has never seen -- and
-    # 71% of the blind set's true pairs are exactly that.
-    if authored_profile_repeat:
-        written["train.jsonl"] = [
-            *written["train.jsonl"],
-            *profile_examples(graph, search_index, repeat=authored_profile_repeat),
-        ]
-
-    # General instruction data, closed-book and off-domain. A model fine-tuned
-    # only on domain templates has no reason to keep the instruction-following
-    # it started with, and that capability is exactly what let the untuned base
-    # model beat both fine-tuned arms on an unfamiliar question type.
-    if general:
-        written["train.jsonl"] = [
-            *written["train.jsonl"],
-            *general_examples(general, seed=seed),
-        ]
-        rng.shuffle(written["train.jsonl"])
-
-    for filename, rows in written.items():
+    for filename, rows in (("train.jsonl", train_rows), ("eval.jsonl", eval_rows)):
         (out / filename).write_text(
             "\n".join(json.dumps(r, ensure_ascii=False) for r in rows), encoding="utf-8"
         )
 
-    train_facts = {q.meta.get("fact_key") for q in train_qs}
-    eval_facts = {q.meta.get("fact_key") for q in eval_qs}
+    kinds = collections.Counter(r["meta"].get("archetype") for r in train_rows)
     stats = {
         "graph": graph.stats(),
-        "questions": describe(questions),
-        "base_questions": len(base),
-        "paraphrases_per_question": paraphrases,
-        "facts_train": len(train_facts),
-        "facts_eval": len(eval_facts),
-        "facts_in_both": len(train_facts & eval_facts),
-        "train": len(written["train.jsonl"]),
-        "eval": len(written["eval.jsonl"]),
-        "blind": len(written["blind.jsonl"]),
-        "general_examples": general,
-        "authored_examples": len(authored_examples(repeat=authored_repeat)),
-        "authored_profile_examples": len(
-            profile_examples(graph, search_index, repeat=authored_profile_repeat)
-        ),
-        "authored_context_examples": len(
-            context_examples(graph, search_index, repeat=authored_context_repeat)
-        ),
+        "distinct_examples": len(keys),
+        "held_out_examples": sorted(held_out),
+        "train": len(train_rows),
+        "eval": len(eval_rows),
+        "authored_repeat": authored_repeat,
+        "train_by_kind": dict(kinds),
         "closed_book_share": round(
-            sum(1 for r in written["train.jsonl"] if r["meta"]["closed_book"])
-            / max(1, len(written["train.jsonl"])),
-            3,
+            sum(1 for r in train_rows if not r["context"]) / max(1, len(train_rows)), 3
         ),
     }
     (out / "corpus_stats.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
