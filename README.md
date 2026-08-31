@@ -30,6 +30,8 @@ Two things keep this honest:
 We trained the model on hand-written examples and compared it against the
 untrained model with a plain keyword search.
 
+![Accuracy results](docs/result-accuracy.svg)
+
 **Training did not make the answers more accurate.** It did make them
 disciplined — short, on-topic, and finished. Use retrieval for facts, training
 for behaviour.
