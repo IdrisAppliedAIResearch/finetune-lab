@@ -86,10 +86,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .records import CONTEXT_K, build_index, context_for
 from .graph import TeamingGraph, build_graph
 from .ingest import load_slice
 from .questions import CANDIDATES, Question, _agency_short, tier_for
+from .records import CONTEXT_K, build_index, context_for
 
 # A company needs this many records before it is worth putting on a slate. At
 # one award the record is a name and a date, which is not something to reason

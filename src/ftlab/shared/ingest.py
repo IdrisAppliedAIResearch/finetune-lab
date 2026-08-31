@@ -38,9 +38,9 @@ import json
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from collections.abc import Iterable
 from typing import Any
 
 API = "https://api.usaspending.gov/api/v2/search/spending_by_award/"

@@ -2,7 +2,7 @@
 
 Uses ``transformers.Trainer`` directly rather than TRL's SFTTrainer. All the
 QRA-specific work -- chat rendering, the reasoning/answer split, and label
-masking -- already happened in ``ftlab.data``, so a higher-level trainer would
+masking -- already happened in ``ftlab.shared.data``, so a higher-level trainer would
 only add dataset preprocessing we would then have to switch off.
 """
 
@@ -89,7 +89,7 @@ def build_training_args(cfg: Config, schedule: dict[str, int], has_eval: bool) -
         # Our rows are already exactly the tensors the model consumes; letting
         # the Trainer prune columns by signature only risks dropping labels.
         remove_unused_columns=False,
-        gradient_checkpointing=False,  # applied on the model in ftlab.model
+        gradient_checkpointing=False,  # applied on the model in ftlab.shared.model
     )
 
 
@@ -122,7 +122,7 @@ def write_run_metadata(cfg: Config, extra: dict[str, Any]) -> Path:
 def train(cfg: Config) -> Path:
     from transformers import Trainer, set_seed
 
-    from . import model as model_mod
+    from ..shared import model as model_mod
     from ..shared.data import build_datasets
 
     set_seed(cfg.run.seed)
@@ -156,25 +156,11 @@ def train(cfg: Config) -> Path:
     collator = PaddedCollator(pad_token_id=tokenizer.pad_token_id)
 
     cap_memory_fraction()
+    # ftlab.metrics used to add a power-and-cost callback here. The module
+    # went in an earlier cleanup and the call site did not, behind a config
+    # flag that defaults to true -- so `ftlab train` raised ImportError on
+    # every invocation and nothing noticed, because no test runs it.
     callbacks: list[Any] = [build_memory_guard()]
-    metrics_cb = None
-    if cfg.metrics.enabled:
-        from .metrics import CostConfig, build_callback
-
-        metrics_cb = build_callback(
-            run_name=cfg.run.name,
-            out_dir=run_dir,
-            cost=CostConfig(
-                electricity_usd_per_kwh=cfg.metrics.electricity_usd_per_kwh,
-                system_overhead_watts=cfg.metrics.system_overhead_watts,
-                cloud_usd_per_hour=cfg.metrics.cloud_usd_per_hour,
-            ),
-            collator=collator,
-            sample_seconds=cfg.metrics.power_sample_seconds,
-        )
-        metrics_cb.metrics.train_examples = len(train_ds)
-        callbacks.append(metrics_cb)
-
     trainer = Trainer(
         model=model,
         args=args,
@@ -208,10 +194,5 @@ def train(cfg: Config) -> Path:
     )
 
     print(f"\n[ftlab] done. adapter -> {adapter_dir}")
-    if metrics_cb is not None:
-        print()
-        print(metrics_cb.metrics.report())
-        print(f"\n[ftlab] metrics -> {run_dir / 'metrics.json'}")
-    else:
-        print(f"[ftlab] metrics: {json.dumps(metrics, indent=2, default=str)}")
+    print(f"[ftlab] metrics: {json.dumps(metrics, indent=2, default=str)}")
     return adapter_dir

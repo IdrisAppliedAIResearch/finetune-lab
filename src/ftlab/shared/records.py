@@ -10,17 +10,10 @@ tuned model and a baseline would be measuring the disagreement.
 from __future__ import annotations
 
 import collections
-from pathlib import Path
 from typing import Any
 
-from .graph import TeamingGraph, build_graph
-from .ingest import load_slice
+from .graph import TeamingGraph
 from .questions import Question, _agency_short
-
-# Fraction of training examples with the retrieved records withheld, so the same
-# adapter can answer closed-book. Two in five is enough to establish the mode
-# without starving the open-book behaviour that arm A depends on.
-CONTEXT_DROPOUT = 0.15
 
 # Records shown when context is supplied. Large enough to cover a full
 # candidate slate: showing 8 records for 12 candidates leaves four that the

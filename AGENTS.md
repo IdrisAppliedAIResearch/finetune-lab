@@ -92,7 +92,7 @@ exactly as well as one that doesn't.
 Detail in `docs/ENGINEERING.md`. The short version:
 
 - **`max_seq_len` drops over-long rows; it does not truncate them.** `truncated`
-  stays 0 while whole examples vanish. Measure with `ftlab.data.encode`, not
+  stays 0 while whole examples vanish. Measure with `ftlab.shared.data.encode`, not
   `tokenizer.apply_chat_template` — the template undercounts by ~170 tokens.
 - **12B QLoRA sits at the edge of a 32 GB card.** It OOMed at `max_seq_len` 3712
   (steps 1 and 10) and 3328 (step 148 of 268). A run that starts is not a run

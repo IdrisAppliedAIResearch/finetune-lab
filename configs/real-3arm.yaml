@@ -19,7 +19,7 @@ data:
   train_path: data/real_corpus/train.jsonl
   eval_path: data/real_corpus/eval.jsonl
 
-  # MEASURED through ftlab.data.encode -- the full encoded row, not the chat
+  # MEASURED through ftlab.shared.data.encode -- the full encoded row, not the chat
   # template alone, which undercounts by ~170 tokens of turn scaffolding.
   # Re-measured after the record was widened to carry per-partner counts: train
   # mean 1375, max 3552.

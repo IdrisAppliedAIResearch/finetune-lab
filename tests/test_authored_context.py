@@ -21,10 +21,10 @@ import pytest
 from factcheck import check_facts, grounded_in, records_in
 
 from ftlab.sft.authored_context import all_open_book, context_examples
-from ftlab.shared.records import build_index
 from ftlab.shared.graph import build_graph
 from ftlab.shared.ingest import load_slice
 from ftlab.shared.questions import tier_for
+from ftlab.shared.records import build_index
 
 DATA = "data/real"
 
@@ -135,7 +135,7 @@ def test_contexts_contain_distractors(rows):
     """Every context must offer names the slate does not, or off-slate discipline
     is untrainable: a prompt whose records exactly match its options never asks
     the model to tell the two apart."""
-    from ftlab.shared.grade import find_companies, known_companies
+    from ftlab.shared.grade import known_companies
 
     known = known_companies(DATA)
     thin = []

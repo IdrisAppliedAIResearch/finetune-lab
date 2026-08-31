@@ -7,19 +7,6 @@ result, and nothing in the test suite noticed.
 
 from __future__ import annotations
 
-import json
-
-import pytest
-
-from ftlab.shared.grade import (
-    conclusion_of,
-    find_companies,
-    grade_one,
-    known_companies,
-    looks_truncated,
-    split_answer,
-)
-
 DATA = "data/real"
 
 
@@ -60,8 +47,8 @@ def test_truncation_is_reported_rather_than_silently_scored():
     Every arm was being scored on answers it had not finished writing, and
     nothing in the report said so.
     """
-    from ftlab.shared.infer import TRUNCATION_MARK
     from ftlab.shared.grade import looks_truncated
+    from ftlab.shared.infer import TRUNCATION_MARK
 
     assert looks_truncated("...AMAZON WEB SERVICES: **Teamed" + TRUNCATION_MARK)
     assert not looks_truncated("Most likely: GAMMA INC and DELTA GROUP.")

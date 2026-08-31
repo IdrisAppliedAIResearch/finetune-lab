@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import pytest
 
+from ftlab.rl.rollout import SYSTEM_PROMPT, load_split
+from ftlab.rl.train import build_dataset, make_reward_fn
 from ftlab.shared.config import load
 from ftlab.shared.model import load_tokenizer
-from ftlab.rl.train import build_dataset, make_reward_fn
-from ftlab.rl.rollout import SYSTEM_PROMPT, load_split
 
 
 @pytest.fixture(scope="module")

@@ -16,7 +16,6 @@ import collections
 
 import pytest
 
-from ftlab.shared.records import CONTEXT_K, build_index, context_for
 from ftlab.shared.graph import build_graph
 from ftlab.shared.ingest import load_slice
 from ftlab.shared.masked import (
@@ -31,6 +30,7 @@ from ftlab.shared.masked import (
     to_question,
 )
 from ftlab.shared.questions import CANDIDATES
+from ftlab.shared.records import CONTEXT_K, build_index, context_for
 
 
 @pytest.fixture(scope="module")

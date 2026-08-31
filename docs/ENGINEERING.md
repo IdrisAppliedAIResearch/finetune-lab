@@ -423,7 +423,7 @@ rows in the corpus, because they carry a full 13-record context):
 | 3200 | 32 | 4 of 25 |
 | 3072 | 48 | **6 of 25 (24%)** |
 
-Measure with `ftlab.data.encode`, not with `tokenizer.apply_chat_template` — the
+Measure with `ftlab.shared.data.encode`, not with `tokenizer.apply_chat_template` — the
 template undercounts by ~170 tokens of turn scaffolding, which is enough to pick
 a limit that silently drops data.
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 
 # Set before anything imports torch. Fragmentation is what turns a run that
 # fits into a run that thrashes, and this allocator mode is what the

@@ -151,8 +151,8 @@ def train(
     import torch
     from trl import GRPOConfig, GRPOTrainer
 
-    from ..shared.model import build_lora_config, build_quantization_config, load_tokenizer
     from ..shared.memory import build_memory_guard, cap_memory_fraction
+    from ..shared.model import build_lora_config, build_quantization_config, load_tokenizer
 
     tokenizer = load_tokenizer(cfg.model)
     items = load_split(split_path)

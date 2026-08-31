@@ -14,9 +14,9 @@ import pytest
 from factcheck import check_facts, grounded_in
 
 from ftlab.sft.authored_profiles import NAICS_LABELS, PROFILES, profile_examples
-from ftlab.shared.records import build_index
 from ftlab.shared.graph import build_graph
 from ftlab.shared.ingest import load_slice
+from ftlab.shared.records import build_index
 
 DATA = "data/real"
 

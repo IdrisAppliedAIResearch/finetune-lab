@@ -39,8 +39,8 @@ counts checked against the graph.
 
 from __future__ import annotations
 
-from .authored import CDC, CMS, FDA, GDIT, NIH, RTI, SAMHSA
-from .authored_context import BATTELLE, CHUGACH, ICF, OpenBook, PERSPECTA
+from .authored import CDC, CMS, FDA, GDIT, NIH, SAMHSA
+from .authored_context import CHUGACH, OpenBook
 
 AHRQ = "Agency for Healthcare Research and Quality"
 ASPR = "Office of Assistant Secretary for Preparedness and Response"

@@ -31,7 +31,6 @@ import math
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any
 
 # BM25 parameters. k1 controls how fast term frequency saturates, b how strongly
 # length normalisation applies. These are the standard defaults and there is no

@@ -16,7 +16,7 @@ from typing import Any
 
 from ..shared.graph import build_graph
 from ..shared.ingest import load_slice
-from ..shared.records import CONTEXT_K, build_index, company_record, context_for
+from ..shared.records import build_index
 from .authored import authored_examples
 from .authored_context import context_examples
 from .authored_profiles import profile_examples
