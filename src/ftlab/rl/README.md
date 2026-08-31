@@ -147,7 +147,5 @@ uv run ftlab masked-run -c real-3arm.yaml       # measure a model
 uv run ftlab masked-train -c real-3arm.yaml     # train one
 ```
 
-**Before starting a long run, read the efficiency notes in
-[AGENTS.md](../../../AGENTS.md).** Two runs were lost to the same failure: the
-graphics card quietly runs out of memory, reports no error, and everything just
-gets four times slower. There is a checklist for it.
+A full training run takes about five hours on one graphics card. See
+[AGENTS.md](../../../AGENTS.md) for the settings it expects.

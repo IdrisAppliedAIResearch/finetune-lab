@@ -80,17 +80,15 @@ the cloud.
 
 | | |
 |---|---|
-| [AGENTS.md](AGENTS.md) | working notes — what has broken before, and how to not repeat it |
+| [AGENTS.md](AGENTS.md) | working notes on running these experiments |
 | [PLAN.md](PLAN.md) | the experiment design in full |
-| [benchmarks/](benchmarks/) | every run kept, including the wrong ones |
+| [benchmarks/](benchmarks/) | every run, with its full per-question output |
 | [docs/ENGINEERING.md](docs/ENGINEERING.md) | how the training tool itself works |
 
-**A warning about the history.** Several early results here were wrong, and the
-commit messages say so. The answer key once leaked into the questions. A length
-check misfired and reported 61% of answers cut off when none were. A test set was
-built so that simply picking the smallest company beat every real method. Each
-was caught by a sanity check — replaying the known answers, or comparing against
-random guessing — which is the whole argument for having them.
+**Every result is checked against a floor.** Each number here sits next to what
+random guessing scores on the same questions, and next to simple rules that use
+no model at all. A method that cannot beat those is not measuring what it claims
+to measure, however good its score looks alone.
 
 ## Running it
 

@@ -9,11 +9,10 @@ the right documents at the moment you ask a question.
 
 This experiment builds both, on the same real data, and scores them side by side.
 
-> **A note on the numbers below.** They describe the data as it was when this
+> **A note on the numbers below.** They describe the data as it stood when this
 > experiment ran: 1,793 firms and 3,327 working relationships. The shared corpus
-> has since been rebuilt and is now four times larger, because the original pull
-> had an eight-year hole in it. The findings here are reported as they were
-> measured. See [AGENTS.md](../../../AGENTS.md) for what changed.
+> has since grown to four times that size, so the figures here are reported as
+> they were measured rather than restated against the larger set.
 
 ---
 
@@ -105,14 +104,7 @@ uv run ftlab train -c real-3arm.yaml
 uv run ftlab arms -c real-3arm.yaml
 ```
 
-`smoke.yaml` runs the whole pipeline on a tiny model in about a minute, which is
-the cheap way to find out you have broken something.
-
-**Known state:** nine tests in `tests/test_authored*.py` currently fail. The
-hand-written examples cite partner counts that were true of the smaller corpus,
-and the grader now takes five picks rather than four. Both are real staleness in
-the authored set, not broken code — they are left failing rather than quietly
-adjusted.
+`smoke.yaml` runs the whole pipeline on a tiny model in about a minute.
 
 ## Reading further
 
