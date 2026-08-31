@@ -13,31 +13,25 @@ model is handed. What gets trained is the **reasoning** it does over them.
 
 ## The test
 
+![How the test works](../../../docs/rl-how-it-works.svg)
+
 Take a subcontract that really happened after the cutoff date. Hide who got it.
 Show the model the prime contractor, twelve plausible candidate firms, and the
 public record for each one. Ask which company actually won the work.
-
-```
-CGI FEDERAL took on a new subcontractor for CMS work.
-Which of these was it? Rank your top five, most likely first.
-1. CATAPULT STAFFING     5. CISCO SYSTEMS       9. SAMTEK
-2. ORACLE AMERICA        6. IMPETUS TECH       10. ORAN        ← the answer
-3. SHI INTERNATIONAL     7. RESOLVESOFT        11. THE ACI GROUP
-4. SPERIDIAN             8. CARAHSOFT          12. HP
-```
 
 Right or wrong is history, not opinion. That is the whole reason this works:
 the model can be scored **automatically, thousands of times**, without anyone
 writing an answer key. Training against a score nobody authored is the difference
 between reinforcement learning and guesswork.
 
-**872 questions, 162 prime contractors.** They split in two, and only one half is
+**872 questions, 162 prime contractors.** 338 are used for training and **534 are
+held back for testing**. Both sets split the same two ways, and only one half is
 interesting:
 
-| | questions | what it measures |
+| test questions | count | what it measures |
 |---|---|---|
-| the prime had used this firm before | 587 | can the model read a partner list |
-| **the prime had never used this firm** | **285** | can the model actually reason |
+| the prime had used this firm before | 378 | can the model read a partner list |
+| **the prime had never used this firm** | **156** | can the model actually reason |
 
 On the first half you can score well by counting who someone worked with last
 time. On the second half that strategy scores **zero by construction** — the
@@ -59,8 +53,7 @@ places.
 
 The headline 43% is entirely look-up. Given a prime contractor it had never seen
 paired with any of these firms, the model with full access to every company's
-record has **no signal at all**. That is the honest starting line, and it means
-there is a lot of room to improve.
+record has **no signal at all**. That is the honest starting line.
 
 ## How training works
 
@@ -84,15 +77,57 @@ test questions come from separate prime contractors. Splitting them any other wa
 would let the model memorise one firm's suppliers during training and then score
 on that same firm at test time.
 
-## Where it stands
+## The result
 
-A first training run is under way. **There is no result yet**, and it may well be
-that there is no improvement to find — the test was built to be able to say so.
+![The result](../../../docs/rl-result.svg)
 
-One thing already learned from watching it: **just over half of the training
-steps produce no signal.** When all of a question's answers come out equally
-right or equally wrong, there is nothing to learn from that question. Most of
-those are the easy look-up questions the model already gets right.
+**Training did not improve the model.** One pass, 169 steps, 4h 51m.
+
+| never worked together (156 questions) | untrained | trained | guessing |
+|---|---|---|---|
+| top pick correct | 8.3% | 7.7% | 8.3% |
+| in top three | 27.6% | 26.9% | 25.0% |
+| in top five | 41.0% | 40.4% | 41.7% |
+
+13 right became 12 right. Three questions got better, four got worse. That is a
+coin flip, and the statistics agree: there is **no measurable difference**.
+
+Nothing else moved either. The overall score went 43.3% to 42.0%, and the
+look-up questions went 57.7% to 56.1% — both small enough to be noise, both
+pointing very slightly the wrong way.
+
+### Why
+
+![Why there was nothing to learn from](../../../docs/rl-why.svg)
+
+Two numbers from the run explain it.
+
+**The trained model gives almost the same answers.** On the questions that
+matter, **85% of its top picks were identical to the untrained model's**, and its
+answers were the same length. After nearly five hours it is nudging a ranking
+here and there, not thinking differently.
+
+**There was very little to learn from.** Of the 338 training questions, **209
+were the easy look-up kind**. The model already gets those right, so all its
+attempts score the same, and a question whose attempts all score the same
+teaches nothing. That is why over half of every training step was wasted. The
+real teaching material was closer to **60 questions**.
+
+So this run was starved. But an honest caveat: a starved run and a hopeless task
+look the same from here. This experiment **cannot tell those two apart**, and it
+would be over-claiming to say the method works and merely needs more food.
+
+What it does show, clearly, is that the untrained model has **no signal at all**
+on pairings it has not seen — not just on its first pick but anywhere in its
+ranking — and one pass of this training did not create any.
+
+### Next
+
+1. **Train only on the hard questions.** Roughly doubles the useful signal for
+   the same hours. Nearly free to do.
+2. **Have the model write more attempts per question**, so there is more chance
+   they differ enough to learn from.
+3. Only then adjust the learning rate or run longer.
 
 ---
 

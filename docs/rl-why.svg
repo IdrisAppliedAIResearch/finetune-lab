@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 430" width="880" height="430" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="880" height="430" fill="#FBFAF7"/>
+
+  <text x="20" y="30" font-size="15" font-weight="600" fill="#23211E">Why nothing happened: there was very little to learn from</text>
+  <text x="20" y="52" font-size="12.5" fill="#6B6862">The training ran on 338 questions. Almost none of them taught the model anything.</text>
+
+  <!-- stage 1 -->
+  <rect x="40" y="92" width="620" height="46" rx="4" fill="#B4AFA7"/>
+  <rect x="40" y="92" width="237" height="46" rx="4" fill="#2F7D95"/>
+  <text x="55" y="121" font-size="15" font-weight="700" fill="#FFFFFF">129 hard</text>
+  <text x="292" y="121" font-size="15" font-weight="700" fill="#FFFFFF">209 easy look-ups</text>
+  <text x="676" y="115" font-size="13" font-weight="600" fill="#23211E">338 questions</text>
+  <text x="676" y="133" font-size="12" fill="#6B6862">the training set</text>
+
+  <text x="40" y="164" font-size="12.5" fill="#4A4741">62% of the training set was the easy kind — pairs who had worked together before. The model already gets those right,</text>
+  <text x="40" y="183" font-size="12.5" fill="#4A4741">so all of its attempts score the same, and a question whose attempts all score the same has nothing to teach.</text>
+
+  <line x1="40" y1="205" x2="840" y2="205" stroke="#E4DFD4"/>
+
+  <!-- stage 2 -->
+  <rect x="40" y="228" width="237" height="46" rx="4" fill="#2F7D95"/>
+  <text x="55" y="257" font-size="15" font-weight="700" fill="#FFFFFF">129</text>
+  <text x="293" y="251" font-size="13" font-weight="600" fill="#23211E">the questions worth training on</text>
+  <text x="293" y="269" font-size="12" fill="#6B6862">pairs who had never worked together</text>
+
+  <!-- stage 3 -->
+  <rect x="40" y="300" width="110" height="46" rx="4" fill="#2F7D95" opacity="0.55"/>
+  <text x="55" y="329" font-size="15" font-weight="700" fill="#FFFFFF">~60</text>
+  <text x="166" y="323" font-size="13" font-weight="600" fill="#23211E">roughly what actually taught it something</text>
+  <text x="166" y="341" font-size="12" fill="#6B6862">on about half the rest, every attempt scored the same too</text>
+
+  <line x1="40" y1="368" x2="840" y2="368" stroke="#E4DFD4"/>
+
+  <text x="20" y="394" font-size="12.5" fill="#4A4741"><tspan font-weight="600">An honest caveat.</tspan> A run starved of examples and a task that simply cannot be learned look exactly the same from here.</text>
+  <text x="20" y="413" font-size="12.5" fill="#4A4741">This experiment cannot tell those two apart. Feeding it better is the next thing to try, not a prediction that it will work.</text>
+</svg>

@@ -47,10 +47,21 @@ and ask which company actually got the work. Right or wrong is history, not
 opinion, so the model can be scored automatically and trained against that
 score.
 
-**Where it stands.** The untrained model scores **exactly chance** on the half of
-the test that matters — the cases where the prime contractor had never used that
-firm before. All of its apparent skill was looking up who someone worked with
-last time. A first training run is under way; there is no result yet.
+![The result](docs/rl-result.svg)
+
+**Two findings, one solid and one open.**
+
+The solid one: the untrained model scores **exactly chance** on the half of the
+test that matters — the cases where the prime contractor had never used that firm
+before. Not just on its first pick, but anywhere in its ranking. All of its
+apparent 43% skill was looking up who someone worked with last time.
+
+The open one: **five hours of training did not change that.** 13 questions right
+became 12. Three got better, four got worse — a coin flip. But the training was
+badly starved: 62% of the questions it practised on were the easy look-up kind
+that teach nothing, leaving perhaps 60 real examples. A starved run and an
+unlearnable task look identical from here, and this experiment cannot tell them
+apart. That is the next thing to fix, not a prediction that fixing it will work.
 
 ---
 
