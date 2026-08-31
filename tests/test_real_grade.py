@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from ftlab.real.grade import (
+from ftlab.shared.grade import (
     conclusion_of,
     find_companies,
     grade_one,
@@ -31,7 +31,7 @@ def test_a_verbose_model_is_graded_on_its_conclusion_not_its_notes():
     approximately a random draw, which is approximately the score it got -- so
     the number said nothing about the model.
     """
-    from ftlab.real.grade import conclusion_of, find_companies
+    from ftlab.shared.grade import conclusion_of, find_companies
 
     known = ["ALPHA CORP", "BETA LLC", "GAMMA INC", "DELTA GROUP"]
     verbose = (
@@ -48,7 +48,7 @@ def test_a_verbose_model_is_graded_on_its_conclusion_not_its_notes():
 
 def test_an_answer_with_no_conclusion_is_graded_on_what_it_wrote():
     """A model that never concludes is not excused for producing nothing."""
-    from ftlab.real.grade import conclusion_of
+    from ftlab.shared.grade import conclusion_of
 
     notes = "1. ALPHA CORP: record [1].\n2. BETA LLC: record [2]."
     assert conclusion_of(notes) == notes
@@ -60,8 +60,8 @@ def test_truncation_is_reported_rather_than_silently_scored():
     Every arm was being scored on answers it had not finished writing, and
     nothing in the report said so.
     """
-    from ftlab.infer import TRUNCATION_MARK
-    from ftlab.real.grade import looks_truncated
+    from ftlab.shared.infer import TRUNCATION_MARK
+    from ftlab.shared.grade import looks_truncated
 
     assert looks_truncated("...AMAZON WEB SERVICES: **Teamed" + TRUNCATION_MARK)
     assert not looks_truncated("Most likely: GAMMA INC and DELTA GROUP.")
@@ -88,7 +88,7 @@ def test_restated_system_prompt_is_not_a_rejection_heading():
     as rejected, scoring it as naming nobody, and handing the untuned arm a free
     zero on hard-negatives-recommended.
     """
-    from ftlab.real.grade import split_answer
+    from ftlab.shared.grade import split_answer
 
     echoed = (
         "I will use only the library records. Do not name a company that does "
@@ -101,7 +101,7 @@ def test_restated_system_prompt_is_not_a_rejection_heading():
 
 
 def test_rejection_heading_only_counts_at_the_start_of_a_line():
-    from ftlab.real.grade import split_answer
+    from ftlab.shared.grade import split_answer
 
     inline = "ALPHA CORP is the pick, and it is Not recommended to stop there."
     recommended, rejected = split_answer(inline)

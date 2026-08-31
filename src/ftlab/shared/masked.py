@@ -86,7 +86,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .build import CONTEXT_K, build_index, context_for
+from .records import CONTEXT_K, build_index, context_for
 from .graph import TeamingGraph, build_graph
 from .ingest import load_slice
 from .questions import CANDIDATES, Question, _agency_short, tier_for

@@ -35,9 +35,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..config import Config
-from .grade import known_companies
-from .questions import TOP_K
+from ..shared.config import Config
+from ..shared.grade import known_companies
+from ..shared.questions import TOP_K
 from .reward import score
 from .rollout import SYSTEM_PROMPT, answer_of, load_split
 
@@ -52,7 +52,7 @@ def build_dataset(items: list[dict[str, Any]], cfg: Config, tokenizer: Any) -> A
     """
     from datasets import Dataset
 
-    from ..data import QRAExample, render_prompt
+    from ..shared.data import QRAExample, render_prompt
 
     original_prompt = cfg.data.system_prompt
     original_kwargs = dict(cfg.data.chat_template_kwargs)
@@ -151,8 +151,8 @@ def train(
     import torch
     from trl import GRPOConfig, GRPOTrainer
 
-    from ..model import build_lora_config, build_quantization_config, load_tokenizer
-    from ..train import build_memory_guard, cap_memory_fraction
+    from ..shared.model import build_lora_config, build_quantization_config, load_tokenizer
+    from ..shared.memory import build_memory_guard, cap_memory_fraction
 
     tokenizer = load_tokenizer(cfg.model)
     items = load_split(split_path)

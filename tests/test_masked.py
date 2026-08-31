@@ -16,10 +16,10 @@ import collections
 
 import pytest
 
-from ftlab.real.build import CONTEXT_K, build_index, context_for
-from ftlab.real.graph import build_graph
-from ftlab.real.ingest import load_slice
-from ftlab.real.masked import (
+from ftlab.shared.records import CONTEXT_K, build_index, context_for
+from ftlab.shared.graph import build_graph
+from ftlab.shared.ingest import load_slice
+from ftlab.shared.masked import (
     ARCHETYPE,
     MIN_NAME,
     MIN_RECORD,
@@ -30,7 +30,7 @@ from ftlab.real.masked import (
     split_by_prime,
     to_question,
 )
-from ftlab.real.questions import CANDIDATES
+from ftlab.shared.questions import CANDIDATES
 
 
 @pytest.fixture(scope="module")

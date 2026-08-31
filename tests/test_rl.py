@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import pytest
 
-from ftlab.config import load
-from ftlab.model import load_tokenizer
-from ftlab.real.rl import build_dataset, make_reward_fn
-from ftlab.real.rollout import SYSTEM_PROMPT, load_split
+from ftlab.shared.config import load
+from ftlab.shared.model import load_tokenizer
+from ftlab.rl.train import build_dataset, make_reward_fn
+from ftlab.rl.rollout import SYSTEM_PROMPT, load_split
 
 
 @pytest.fixture(scope="module")
@@ -44,7 +44,7 @@ def test_the_training_prompts_match_what_the_baseline_was_measured_on(
     suppressed. If training renders anything else, the difference between the
     two runs includes a prompt change and would read as learning.
     """
-    from ftlab.data import QRAExample, render_prompt
+    from ftlab.shared.data import QRAExample, render_prompt
 
     cfg.data.system_prompt = SYSTEM_PROMPT
     cfg.data.chat_template_kwargs = {**cfg.data.chat_template_kwargs, "enable_thinking": False}

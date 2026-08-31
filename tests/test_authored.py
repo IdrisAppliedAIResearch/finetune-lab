@@ -18,9 +18,9 @@ import collections
 import pytest
 from factcheck import check_facts
 
-from ftlab.real.authored import all_authored, authored_examples
-from ftlab.real.graph import build_graph
-from ftlab.real.ingest import load_slice
+from ftlab.sft.authored import all_authored, authored_examples
+from ftlab.shared.graph import build_graph
+from ftlab.shared.ingest import load_slice
 
 DATA = "data/real"
 

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from ftlab.real.reward import (
+from ftlab.rl.reward import (
     NO_ANSWER_PENALTY,
     OFF_SLATE_PENALTY,
     parse_ranking,

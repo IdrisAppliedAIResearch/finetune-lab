@@ -13,7 +13,10 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
-CONFIG_ROOT = Path(__file__).resolve().parents[2] / "configs"
+# Repo root, from src/ftlab/shared/config.py. Counted rather than walked, so it
+# breaks loudly the next time this module moves -- which it just did, and the
+# stale depth pointed at src/configs and failed every config-loading test.
+CONFIG_ROOT = Path(__file__).resolve().parents[3] / "configs"
 
 
 class RunConfig(BaseModel):

@@ -20,11 +20,11 @@ import collections
 import pytest
 from factcheck import check_facts, grounded_in, records_in
 
-from ftlab.real.authored_context import all_open_book, context_examples
-from ftlab.real.build import build_index
-from ftlab.real.graph import build_graph
-from ftlab.real.ingest import load_slice
-from ftlab.real.questions import tier_for
+from ftlab.sft.authored_context import all_open_book, context_examples
+from ftlab.shared.records import build_index
+from ftlab.shared.graph import build_graph
+from ftlab.shared.ingest import load_slice
+from ftlab.shared.questions import tier_for
 
 DATA = "data/real"
 
@@ -106,7 +106,7 @@ def test_answers_name_only_slate_companies(graph, rows):
     so an answer that reaches for an outside name is caught even when the name
     looks harmless.
     """
-    from ftlab.real.grade import find_companies, known_companies
+    from ftlab.shared.grade import find_companies, known_companies
 
     known = known_companies(DATA)
     failures = []
@@ -135,7 +135,7 @@ def test_contexts_contain_distractors(rows):
     """Every context must offer names the slate does not, or off-slate discipline
     is untrainable: a prompt whose records exactly match its options never asks
     the model to tell the two apart."""
-    from ftlab.real.grade import find_companies, known_companies
+    from ftlab.shared.grade import find_companies, known_companies
 
     known = known_companies(DATA)
     thin = []
@@ -148,7 +148,7 @@ def test_contexts_contain_distractors(rows):
 
 def test_most_answers_state_what_they_turned_down():
     """Trap rejection was 0.169, and 18% of open-book training answers modelled it."""
-    from ftlab.real.grade import REJECT_MARKERS
+    from ftlab.shared.grade import REJECT_MARKERS
 
     rejecting = [
         e for e in all_open_book() if any(marker in e.answer for marker in REJECT_MARKERS)
@@ -227,7 +227,7 @@ def test_no_example_recommends_a_hard_negative(rows):
     grader reads picks -- which is what happens when a decline names the four
     companies it is declining before it says it is declining them.
     """
-    from ftlab.real.grade import grade_one, known_companies
+    from ftlab.shared.grade import grade_one, known_companies
 
     known = known_companies(DATA)
     failures = []
@@ -254,7 +254,7 @@ def test_authored_answers_beat_the_slate_on_tier(rows):
     Arm A scored 1.780 and the floor 1.477. Hand-written answers that do not
     clear both by a wide margin are not worth training on.
     """
-    from ftlab.real.grade import grade_one, known_companies
+    from ftlab.shared.grade import grade_one, known_companies
 
     known = known_companies(DATA)
     # Declines are excluded on purpose. Since a non-answer scores zero rather

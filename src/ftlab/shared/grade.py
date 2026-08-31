@@ -104,7 +104,7 @@ def looks_truncated(text: str) -> bool:
     reported 61% truncation for an arm whose longest answer used 60% of its
     budget, which would have sent me off to fix a budget that was fine.
     """
-    from ..infer import TRUNCATION_MARK
+    from .infer import TRUNCATION_MARK
 
     return TRUNCATION_MARK in text
 

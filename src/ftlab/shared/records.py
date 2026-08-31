@@ -1,35 +1,18 @@
-"""Assemble the real corpus: train, eval, and the sealed blind set.
+"""Company records and the retrieval that puts them in a prompt.
 
-Three files, and the third is the point. ``blind.jsonl`` is generated from
-subcontracts dated after the training cutoff, so nothing that writes a training
-example has read it. Of the teaming pairs in that period, 71% appear nowhere in
-training -- the answers cannot be reached by recalling a training example.
-
-Context is attached in two flavours because the benchmark has three arms:
-
-    A  fine-tuned model + retrieval    trained with context, served with context
-    B  fine-tuned model alone          trained with context sometimes absent
-    C  base model + retrieval          no training at all
-
-Arm B is why ``context_dropout`` exists. A model trained only on prompts that
-carry library records meets, when the records are withheld, a prompt shape it
-has never seen, and fails for a reason that has nothing to do with what it knows.
-Dropping the context on a fraction of training examples teaches it both modes,
-so a single training run serves arms A and B and the comparison between them is
-about knowledge rather than formatting.
+Shared because both halves of the project read the same records: the
+supervised corpus builder writes them into training examples, and the
+masked-sub evaluation attaches them as context. If these two ever
+disagreed about what a company record says, every comparison between a
+tuned model and a baseline would be measuring the disagreement.
 """
 
 from __future__ import annotations
 
 import collections
-import json
-import random
 from pathlib import Path
 from typing import Any
 
-from .authored import authored_examples
-from .authored_context import context_examples
-from .authored_profiles import profile_examples
 from .graph import TeamingGraph, build_graph
 from .ingest import load_slice
 from .questions import Question, _agency_short
@@ -150,7 +133,7 @@ def company_record(graph: TeamingGraph, name: str) -> str:
 
 def build_index(graph: TeamingGraph) -> Any:
     """BM25 over company records, so context can be chosen without the answer."""
-    from ..retrieve import BM25Index, Document
+    from .retrieve import BM25Index, Document
 
     docs = [
         Document(id=name, kind="partner", title=name, text=company_record(graph, name))
@@ -218,93 +201,3 @@ def context_for(
 
 
 
-def build(
-    data_dir: str | Path = "data/real",
-    out_dir: str | Path = "data/real_corpus",
-    seed: int = 42,
-    eval_examples: int = 8,
-    dropout: float = CONTEXT_DROPOUT,
-    authored_repeat: int = 3,
-) -> dict[str, Any]:
-    """Assemble the corpus from hand-written examples only.
-
-    This used to expand thirteen archetypes into ~1,900 templated rows and split
-    them into train and eval. Two things were wrong with that and both are fixed
-    by deleting it.
-
-    The eval split contained *zero* hand-written rows -- the authored families
-    were appended to train after the split -- so eval loss measured how well the
-    model reproduced templates, and checkpoint selection was steered by it. Here
-    the split is over distinct authored examples, so eval measures the behaviour
-    the project is actually trying to teach.
-
-    And every generated gold answer was an observed relationship in the training
-    graph, which taught one rule: the answer is a firm this prime has already
-    hired. Hand-written examples can teach the case that rule gets wrong.
-
-    Splitting on the *example*, not the row: an example is repeated
-    ``authored_repeat`` times, and letting copies straddle the split would put
-    the eval answer verbatim in train.
-    """
-    slice_ = load_slice(data_dir)
-    graph = build_graph(slice_.prime_awards, slice_.subawards)
-    search_index = build_index(graph)
-    rng = random.Random(seed)
-
-    # One copy of each distinct example, tagged so the split can group them.
-    singles: list[dict[str, Any]] = [
-        *authored_examples(repeat=1),
-        *context_examples(graph, search_index, repeat=1),
-        *profile_examples(graph, search_index, repeat=1),
-    ]
-    for row in singles:
-        row["meta"]["example_id"] = row["question"][:80]
-
-    keys = sorted({r["meta"]["example_id"] for r in singles})
-    rng.shuffle(keys)
-    held_out = set(keys[:eval_examples])
-
-    def expand(rows: list[dict[str, Any]], repeat: int) -> list[dict[str, Any]]:
-        out: list[dict[str, Any]] = []
-        for _ in range(repeat):
-            out.extend(json.loads(json.dumps(r)) for r in rows)
-        return out
-
-    train_rows = expand([r for r in singles if r["meta"]["example_id"] not in held_out],
-                        authored_repeat)
-    eval_rows = [r for r in singles if r["meta"]["example_id"] in held_out]
-
-    # Context dropout, deterministic by position so a rebuild is reproducible.
-    # Far lower than the 0.4 this used to run at: closed-book answering measured
-    # 0.279 against a 0.369 random floor, so 43% of the corpus was training a
-    # mode that performs worse than guessing. Enough is kept for arm B to exist
-    # as a control, and no more.
-    for position, row in enumerate(train_rows):
-        if row["context"] and (position % 100) < int(dropout * 100):
-            row["context"] = ""
-            row["meta"]["closed_book"] = True
-
-    rng.shuffle(train_rows)
-
-    out = Path(out_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    for filename, rows in (("train.jsonl", train_rows), ("eval.jsonl", eval_rows)):
-        (out / filename).write_text(
-            "\n".join(json.dumps(r, ensure_ascii=False) for r in rows), encoding="utf-8"
-        )
-
-    kinds = collections.Counter(r["meta"].get("archetype") for r in train_rows)
-    stats = {
-        "graph": graph.stats(),
-        "distinct_examples": len(keys),
-        "held_out_examples": sorted(held_out),
-        "train": len(train_rows),
-        "eval": len(eval_rows),
-        "authored_repeat": authored_repeat,
-        "train_by_kind": dict(kinds),
-        "closed_book_share": round(
-            sum(1 for r in train_rows if not r["context"]) / max(1, len(train_rows)), 3
-        ),
-    }
-    (out / "corpus_stats.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
-    return stats

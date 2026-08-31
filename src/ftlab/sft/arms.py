@@ -26,8 +26,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..config import Config
-from .grade import (
+from ..shared.config import Config
+from ..shared.grade import (
     TOP_K,
     aggregate,
     collapse_report,
@@ -66,7 +66,7 @@ def run_arm(
     max_new_tokens: int = 900,
     batch_size: int = 8,
 ) -> ArmResult:
-    from ..infer import generate_many, load_for_inference
+    from ..shared.infer import generate_many, load_for_inference
 
     label, use_adapter, use_context = ARMS[arm]
     model, tokenizer = load_for_inference(cfg, adapter if use_adapter else None)
@@ -147,7 +147,7 @@ def run_rule_arm(
 
 def compare(results: list[ArmResult], floor: dict[str, Any]) -> str:
     """One table, arms side by side, every number against the same floor."""
-    from .grade import LABELS
+    from ..shared.grade import LABELS
 
     order = [r.arm for r in results]
     head = "".join(f"{('arm ' + a.upper()):>12}" for a in order)
@@ -201,8 +201,8 @@ def run(
 
     graph = None
     if RULE_ARMS & set(arms):
-        from .graph import build_graph
-        from .ingest import load_slice
+        from ..shared.graph import build_graph
+        from ..shared.ingest import load_slice
 
         slice_ = load_slice(data_dir)
         graph = build_graph(slice_.prime_awards, slice_.subawards)

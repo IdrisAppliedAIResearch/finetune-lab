@@ -814,8 +814,8 @@ def context_examples(graph: Any, index: Any, repeat: int = 1) -> list[dict[str, 
     model is served at inference. Writing a context block by hand instead would
     teach a prompt format that never occurs.
     """
-    from .build import context_for
-    from .questions import Question
+    from ..shared.records import context_for
+    from ..shared.questions import Question
 
     rows: list[dict[str, Any]] = []
     for _ in range(repeat):

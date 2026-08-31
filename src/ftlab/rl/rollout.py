@@ -29,9 +29,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..config import Config
-from .grade import known_companies
-from .questions import TOP_K
+from ..shared.config import Config
+from ..shared.grade import known_companies
+from ..shared.questions import TOP_K
 from .reward import Reward, score_batch, summarise
 
 SYSTEM_PROMPT = (
@@ -96,7 +96,7 @@ def answer_of(text: str, close: str) -> str:
     The truncation mark is moved onto the answer, because a reply cut off inside
     its own thinking has no answer at all and must not be read as a silent one.
     """
-    from ..infer import TRUNCATION_MARK
+    from ..shared.infer import TRUNCATION_MARK
 
     truncated = text.endswith(TRUNCATION_MARK)
     body = text.removesuffix(TRUNCATION_MARK)
@@ -146,7 +146,7 @@ def run(
     ``model`` and ``tokenizer`` may be passed in so a training loop does not
     reload eleven gigabytes of weights to measure itself between epochs.
     """
-    from ..infer import generate_many, load_for_inference
+    from ..shared.infer import generate_many, load_for_inference
 
     if model is None or tokenizer is None:
         model, tokenizer = load_for_inference(cfg, adapter)

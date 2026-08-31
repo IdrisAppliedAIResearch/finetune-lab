@@ -741,8 +741,8 @@ def profile_examples(graph: Any, index: Any, repeat: int = 1) -> list[dict[str, 
     has already measured. What is being taught is reading a record, and the
     record has to be there.
     """
-    from .build import context_for
-    from .questions import Question
+    from ..shared.records import context_for
+    from ..shared.questions import Question
 
     rows: list[dict[str, Any]] = []
     for _ in range(repeat):

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from ftlab.data import IGNORE_INDEX, QRAExample, encode, encode_all, render_assistant
+from ftlab.shared.data import IGNORE_INDEX, QRAExample, encode, encode_all, render_assistant
 
 EXAMPLE = QRAExample(
     question="What is 2+2?",
@@ -222,7 +222,7 @@ def test_template_kwargs_reach_the_prompt_renderer(gemma_tokenizer, data_cfg):
     Passing the kwargs on one side only would give the model a format at
     inference that it never saw in training.
     """
-    from ftlab.data import render_prompt
+    from ftlab.shared.data import render_prompt
 
     data_cfg.chat_template_kwargs = {"enable_thinking": True}
     prompt = render_prompt(EXAMPLE, data_cfg, gemma_tokenizer)

@@ -12,7 +12,7 @@ from pathlib import Path
 # supervised runs needed for the same reason.
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
-from . import config as config_mod
+from .shared import config as config_mod
 
 
 def _add_config_args(parser: argparse.ArgumentParser, *, required: bool = True) -> None:
@@ -55,8 +55,8 @@ def cmd_check_data(args: argparse.Namespace) -> int:
     training runs, the loss falls, and the model learns the wrong thing. This
     prints the boundary so it can be checked by eye before burning GPU hours.
     """
-    from .data import IGNORE_INDEX, encode_all, load_jsonl
-    from .model import load_tokenizer
+    from .shared.data import IGNORE_INDEX, encode_all, load_jsonl
+    from .shared.model import load_tokenizer
 
     cfg = _load_config(args)
     path = args.path or cfg.data.train_path
@@ -87,7 +87,7 @@ def cmd_check_data(args: argparse.Namespace) -> int:
 
 
 def cmd_train(args: argparse.Namespace) -> int:
-    from .train import train
+    from .sft.train import train
 
     cfg = _load_config(args)
     if getattr(args, "resume_adapter", None):
@@ -98,7 +98,7 @@ def cmd_train(args: argparse.Namespace) -> int:
 
 def cmd_real_fetch(args: argparse.Namespace) -> int:
     """Pull a fresh slice from the USASpending API, one year at a time."""
-    from .real.ingest import build_slice, write_slice
+    from .shared.ingest import build_slice, write_slice
 
     data = build_slice(
         subaward_pages=args.subaward_pages,
@@ -112,7 +112,7 @@ def cmd_real_fetch(args: argparse.Namespace) -> int:
 
 def cmd_real_build(args: argparse.Namespace) -> int:
     """Build the real corpus from the cached USASpending slice."""
-    from .real.build import build
+    from .sft.corpus import build
 
     stats = build(
         data_dir=args.data or "data/real",
@@ -125,7 +125,7 @@ def cmd_real_build(args: argparse.Namespace) -> int:
 
 def cmd_masked_build(args: argparse.Namespace) -> int:
     """Build the masked-sub evaluation set from observed teaming."""
-    from .real.masked import build
+    from .shared.masked import build
 
     stats = build(
         data_dir=args.data or "data/real",
@@ -138,7 +138,7 @@ def cmd_masked_build(args: argparse.Namespace) -> int:
 
 def cmd_masked_train(args: argparse.Namespace) -> int:
     """GRPO against the verified reward on the masked-sub training half."""
-    from .real.rl import train
+    from .rl.train import train
 
     cfg = _load_config(args)
     stats = train(
@@ -163,7 +163,7 @@ def cmd_masked_train(args: argparse.Namespace) -> int:
 
 def cmd_masked_run(args: argparse.Namespace) -> int:
     """Generate and score answers for the masked-sub split."""
-    from .real.rollout import load_split, run, save
+    from .rl.rollout import load_split, run, save
 
     cfg = _load_config(args)
     items = load_split(args.split)
@@ -188,7 +188,7 @@ def cmd_masked_run(args: argparse.Namespace) -> int:
 
 def cmd_arms(args: argparse.Namespace) -> int:
     """Run the three-arm benchmark and print the comparison table."""
-    from .real.arms import run
+    from .sft.arms import run
 
     cfg = _load_config(args)
     adapter = args.adapter or str(cfg.run_dir / "adapter")
@@ -205,7 +205,7 @@ def cmd_arms(args: argparse.Namespace) -> int:
 
 
 def cmd_infer(args: argparse.Namespace) -> int:
-    from .infer import questions_from, run, save
+    from .shared.infer import questions_from, run, save
 
     cfg = _load_config(args)
 

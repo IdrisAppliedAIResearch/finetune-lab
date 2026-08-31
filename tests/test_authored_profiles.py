@@ -13,10 +13,10 @@ import collections
 import pytest
 from factcheck import check_facts, grounded_in
 
-from ftlab.real.authored_profiles import NAICS_LABELS, PROFILES, profile_examples
-from ftlab.real.build import build_index
-from ftlab.real.graph import build_graph
-from ftlab.real.ingest import load_slice
+from ftlab.sft.authored_profiles import NAICS_LABELS, PROFILES, profile_examples
+from ftlab.shared.records import build_index
+from ftlab.shared.graph import build_graph
+from ftlab.shared.ingest import load_slice
 
 DATA = "data/real"
 
@@ -85,7 +85,7 @@ def test_every_named_company_is_in_the_context(rows):
 
 def test_answers_only_name_companies_they_declared(rows):
     """The declaration has to be complete, or the context check above is hollow."""
-    from ftlab.real.grade import find_companies, known_companies
+    from ftlab.shared.grade import find_companies, known_companies
 
     known = known_companies(DATA)
     failures = []

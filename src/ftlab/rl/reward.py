@@ -33,8 +33,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from .grade import conclusion_of, find_companies, looks_truncated, split_answer
-from .questions import TOP_K
+from ..shared.grade import conclusion_of, find_companies, looks_truncated, split_answer
+from ..shared.questions import TOP_K
 
 # Per off-slate name among the picks. Five ungrounded names cost 0.5, which is
 # more than the 0.2 a fifth-place correct answer earns, so guessing wildly is
