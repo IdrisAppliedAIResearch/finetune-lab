@@ -30,12 +30,6 @@ Two things keep this honest:
 We trained the model on hand-written examples and compared it against the
 untrained model with a plain keyword search.
 
-![Accuracy results](docs/result-accuracy.svg)
-
-**Training did not make the answers more accurate.** It did make them
-disciplined — short, on-topic, and finished. Use retrieval for facts, training
-for behaviour.
-
 ## Experiment two: teaching a model to reason
 
 **[→ Reinforcement learning](src/ftlab/rl/README.md)**
@@ -43,27 +37,6 @@ for behaviour.
 The first experiment tried to put facts *into* the model. This one leaves the
 facts outside, in the documents, and tries to improve the model's **judgement**
 about them.
-
-The test: hide a real subcontract, show the model twelve plausible candidates,
-and ask which company actually got the work. Right or wrong is history, not
-opinion, so the model can be scored automatically and trained against that
-score.
-
-![The result](docs/rl-result.svg)
-
-**Two findings, one solid and one open.**
-
-The solid one: the untrained model scores **exactly chance** on the half of the
-test that matters — the cases where the prime contractor had never used that firm
-before. Not just on its first pick, but anywhere in its ranking. All of its
-apparent 43% skill was looking up who someone worked with last time.
-
-The open one: **five hours of training did not change that.** 13 questions right
-became 12. Three got better, four got worse — a coin flip. But the training was
-badly starved: 62% of the questions it practised on were the easy look-up kind
-that teach nothing, leaving perhaps 60 real examples. A starved run and an
-unlearnable task look identical from here, and this experiment cannot tell them
-apart. That is the next thing to fix, not a prediction that fixing it will work.
 
 ---
 
