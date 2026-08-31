@@ -16,10 +16,11 @@ from __future__ import annotations
 import collections
 
 import pytest
+from factcheck import check_facts
 
-from ftlab.real.authored import all_authored, authored_examples
-from ftlab.real.graph import build_graph
-from ftlab.real.ingest import load_slice
+from ftlab.sft.authored import all_authored, authored_examples
+from ftlab.shared.graph import build_graph
+from ftlab.shared.ingest import load_slice
 
 DATA = "data/real"
 
@@ -33,64 +34,11 @@ def graph():
     return build_graph(slice_.prime_awards, slice_.subawards)
 
 
-def team_size(graph, prime: str, agency: str) -> int:
-    return len({r["sub"] for r in graph.train_subawards
-                if r["prime"] == prime and r["agency"] == agency})
-
-
-def times_used(graph, prime: str, sub: str, agency: str | None = None) -> int:
-    return sum(
-        1
-        for r in graph.train_subawards
-        if r["prime"] == prime and r["sub"] == sub
-        and (agency is None or r["agency"] == agency)
-    )
-
-
 def test_every_authored_claim_holds(graph):
     """The load-bearing test. A wrong number here teaches the model a wrong fact."""
     failures = []
     for question, _reasoning, _answer, facts in all_authored():
-        for fact in facts:
-            kind, args = fact[0], fact[1:]
-            if kind == "team_size":
-                prime, agency, expected = args
-                actual = team_size(graph, prime, agency)
-            elif kind == "used":
-                prime, sub, expected = args[0], args[1], args[2]
-                agency = args[3] if len(args) > 3 else None
-                actual = times_used(graph, prime, sub, agency)
-            elif kind == "agencies":
-                company, expected = args
-                actual = len(graph.companies[company].agencies)
-            elif kind == "partners":
-                company, expected = args
-                actual = len(graph.companies[company].partners)
-            elif kind == "not_used":
-                prime, sub, agency = args
-                expected, actual = 0, times_used(graph, prime, sub, agency)
-            elif kind == "agency_work":
-                company, agency = args
-                expected = True
-                actual = any(
-                    company in (r["prime"], r["sub"])
-                    for r in graph.train_subawards
-                    if r["agency"] == agency
-                )
-            elif kind == "no_work":
-                company, agency = args
-                expected, actual = 0, sum(
-                    1 for r in graph.train_subawards
-                    if r["agency"] == agency
-                    and company in (r["prime"], r["sub"])
-                )
-            else:  # pragma: no cover - guarded by the tuple shape
-                raise AssertionError(f"unknown fact kind {kind!r}")
-
-            if actual != expected:
-                failures.append(
-                    f"{question[:48]!r}: {kind}{args} -- said {expected}, data says {actual}"
-                )
+        failures += check_facts(graph, question, facts)
 
     assert not failures, "authored prose disagrees with the data:\n" + "\n".join(failures)
 

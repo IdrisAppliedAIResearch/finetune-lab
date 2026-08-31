@@ -1,42 +1,32 @@
 {
   "graph": {
-    "companies": 1793,
-    "train_subawards": 2559,
-    "blind_subawards": 768,
-    "train_pairs": 1681,
-    "blind_pairs": 571,
-    "blind_pairs_unseen_in_train": 407,
-    "primes_with_3plus_subs_train": 132,
-    "repeat_pairs_train": 397
+    "companies": 4256,
+    "train_subawards": 12906,
+    "blind_subawards": 2610,
+    "train_pairs": 5653,
+    "blind_pairs": 1628,
+    "blind_pairs_unseen_in_train": 956,
+    "primes_with_3plus_subs_train": 265,
+    "repeat_pairs_train": 2115
   },
-  "questions": {
-    "total": 1790,
-    "by_archetype": {
-      "prior_relationship": 360,
-      "sub_candidates": 316,
-      "team_composition": 296,
-      "prime_candidates": 180,
-      "portfolio": 180,
-      "repeat_partners": 123,
-      "warm_intro": 111,
-      "bench_depth": 61,
-      "capability_match": 60,
-      "agency_bridge": 54,
-      "unsupported": 40,
-      "new_at_agency": 9
-    },
-    "ranking_questions": 439,
-    "ranking_questions_with_hard_negatives": 316
+  "distinct_examples": 59,
+  "held_out_examples": [
+    "Cox Construction has Indian Health Service work coming. Which of these would the",
+    "HP and HP ENTERPRISE SERVICES both show up in CMS records. What's the difference",
+    "How many subcontractors does GDIT use at FDA?",
+    "If we're chasing ICF's NIH work, what does their typical subcontractor look like",
+    "UAB is prime on a CDC award. Rank these as potential subs.\n1. RESEARCH TRIANGLE ",
+    "Which of these has RTI actually used on CDC work?\n1. CARAHSOFT TECHNOLOGY SOLUTI",
+    "Which of these work CMS?\n1. HR DIRECTIONS\n2. CARAHSOFT TECHNOLOGY SOLUTIONS\n3. T",
+    "Who should we talk to about NIH work at Deloitte?"
+  ],
+  "train": 153,
+  "eval": 8,
+  "authored_repeat": 3,
+  "train_by_kind": {
+    "authored_profile": 39,
+    "authored_slate": 69,
+    "authored": 45
   },
-  "base_questions": 695,
-  "paraphrases_per_question": 4,
-  "facts_train": 591,
-  "facts_eval": 104,
-  "facts_in_both": 0,
-  "train": 1829,
-  "eval": 263,
-  "blind": 51,
-  "general_examples": 150,
-  "authored_examples": 152,
-  "closed_book_share": 0.508
+  "closed_book_share": 0.621
 }

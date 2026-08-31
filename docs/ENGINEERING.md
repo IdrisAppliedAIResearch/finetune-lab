@@ -386,6 +386,97 @@ product of the two, so the run stays comparable.
 Windows keeps a desktop composition buffer on the GPU. `ftlab doctor` reports
 free VRAM, not total; check it before a large run.
 
+### The sequence-length ceiling, measured (12B QLoRA, 32 GB, batch 1)
+
+The 19.5 GB figure above is at 2K context. Extending it, after the retrieved
+records were widened to carry per-partner counts and prompts grew ~24%:
+
+| `max_seq_len` | longest row | outcome |
+|---|---|---|
+| 3072 | — | ran to completion (v2), 19.99 GB peak allocated |
+| 3328 | 3276 tok | **OOM at step 148 of 268**, 22.4 GB allocated, 5.3 GB reserved-unallocated |
+| 3456 | 3442 tok | not run (would drop 1 example) |
+| 3712 | 3552 tok | **OOM at step 1 and step 10**, 22.9 GB allocated |
+
+The backward pass wanted 3.2–3.4 GB contiguous and had 1.9–3.3 GB free. Note
+that 3328 survived 147 steps before failing: whether a given step OOMs depends
+on which long row the shuffle hands it, so **a run that starts is not a run that
+fits**. Treat anything above ~3K context on this card as unproven until it has
+cleared a full epoch.
+
+`expandable_segments:True` was tried again on both failures, because the error
+message recommends it. It changed nothing, exactly as the note above says it
+would. Read that note before spending a run on it.
+
+### `max_seq_len` drops rows; it does not truncate them
+
+`encode_all` reports `kept / dropped / truncated`. A row longer than the limit is
+**dropped**, and `truncated` stays at 0 — so a limit set too low removes whole
+training examples while the log looks clean. Measured on this corpus, every
+over-length row was hand-written (the authored open-book slates are the longest
+rows in the corpus, because they carry a full 13-record context):
+
+| `max_seq_len` | rows dropped | distinct authored examples lost |
+|---|---|---|
+| 3456 | 8 | 1 of 25 |
+| 3328 | 16 | 2 of 25 |
+| 3200 | 32 | 4 of 25 |
+| 3072 | 48 | **6 of 25 (24%)** |
+
+Measure with `ftlab.shared.data.encode`, not with `tokenizer.apply_chat_template` — the
+template undercounts by ~170 tokens of turn scaffolding, which is enough to pick
+a limit that silently drops data.
+
+When the choice is between dropping training rows and shrinking `CONTEXT_K`,
+**drop the rows**. `CONTEXT_K = 13` is sized so that a 12-candidate blind slate
+plus its prime each get a record; at K=11 roughly two candidates per slate are
+ranked with no record at all. That degrades the prompt arms A and C are
+*measured* on while leaving B and D untouched — it biases the comparison rather
+than lowering a score. Training data is worth spending to keep the measurement
+clean.
+
+---
+
+## Long runs: failure modes that hide
+
+Every one of these was hit for real, and each cost more than the check would
+have. The pattern is the same in all of them: one proxy was trusted as ground
+truth.
+
+**Put the exit code where you can see it.** A launch written as
+`python … ; echo "EXIT=$?" >> log ; tail -5 log` reports *`tail`'s* status, so a
+trainer that died returns 0 and the harness calls it "completed". One run sat
+dead for 91 minutes behind a green tick. Write
+`python … > log 2>&1; code=$?; echo "EXIT=$code" >> log; exit $code`.
+
+**Use a fresh log filename per run.** Truncating and reusing one path means a
+follower attached to it can replay the *previous* run's traceback into the new
+run's event stream. Distinguishing them then depends on noticing that the step
+count in the stale line belongs to the old schedule.
+
+**Log silence is not death, and it is phase-dependent.** Training writes a
+progress line every ~25 s; batched generation writes nothing for ten minutes at
+a stretch. A staleness watchdog tuned to training fires a false alarm the moment
+inference starts. Gate a stall alert on *silence and an idle GPU together*, and
+require two consecutive strikes.
+
+**Sample the GPU more than once.** A single `nvidia-smi` reading caught during an
+optimizer step showed 12% utilisation and looked like a stall; twelve samples
+over twelve seconds showed a sustained 97-99%. One sample is an anecdote.
+
+**`torch.cuda.mem_get_info()` is unreliable from another process on Windows.** It
+reported 31.8 GB *free* while `nvidia-smi` reported 31.9 GB *used* on the same
+card at the same moment. Use `nvidia-smi` for cross-process memory questions.
+
+**Progress bars are invisible to line-oriented filters.** tqdm writes `\r`
+without newlines, so `tail -f log | grep` sees nothing from it. Pipe through
+`tr '\r' '\n'` first.
+
+**Automate detection, not recovery.** All three OOMs here were deterministic; an
+auto-restart would have burned the same time repeatedly. If you do add recovery,
+bound it: resume once, only from a checkpoint that exists, and never twice
+without a config change.
+
 ---
 
 ## Exporting to ollama

@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from ftlab import config as config_mod
-from ftlab.data import load_jsonl, split_train_eval
+from ftlab.shared import config as config_mod
+from ftlab.shared.data import load_jsonl, split_train_eval
 
 # ---------------------------------------------------------------------------
 # config
@@ -157,8 +157,8 @@ def test_split_never_empties_train():
 
 
 def test_collator_pads_labels_with_ignore_index():
-    from ftlab.collate import PaddedCollator
-    from ftlab.data import IGNORE_INDEX
+    from ftlab.shared.collate import PaddedCollator
+    from ftlab.shared.data import IGNORE_INDEX
 
     collator = PaddedCollator(pad_token_id=99, pad_to_multiple_of=1)
     batch = collator(
@@ -176,7 +176,7 @@ def test_collator_pads_labels_with_ignore_index():
 
 
 def test_collator_rounds_up_to_multiple_of_eight():
-    from ftlab.collate import PaddedCollator
+    from ftlab.shared.collate import PaddedCollator
 
     batch = PaddedCollator(pad_token_id=0, pad_to_multiple_of=8)(
         [{"input_ids": [1] * 3, "labels": [1] * 3, "attention_mask": [1] * 3}]
@@ -191,7 +191,7 @@ def test_collator_rounds_up_to_multiple_of_eight():
 
 def test_warmup_steps_derived_from_ratio():
     """transformers 5 removed warmup_ratio, so ftlab computes the step count."""
-    from ftlab.train import compute_schedule
+    from ftlab.sft.train import compute_schedule
 
     cfg = config_mod.load(
         "smoke.yaml",
@@ -211,7 +211,30 @@ def test_warmup_steps_derived_from_ratio():
 
 
 def test_max_steps_caps_the_schedule():
-    from ftlab.train import compute_schedule
+    from ftlab.sft.train import compute_schedule
 
     cfg = config_mod.load("smoke.yaml", {"train.max_steps": 6})
     assert compute_schedule(cfg, n_train=10_000)["total_steps"] == 6
+
+
+def test_save_steps_must_align_with_eval_steps():
+    """A best checkpoint on an unsaved step is a best checkpoint you cannot serve.
+
+    The v2 run evaluated every 25 steps, found its best at 175, and saved only
+    at 115 and 230. Both fine-tuned arms then ran on step 230 -- worse on eval,
+    and carrying the memorisation gap the gate had already flagged.
+    """
+    import pytest
+
+    from ftlab.shared.config import Config
+
+    base = {
+        "model": {"base": "unused"},
+        "data": {"train_path": "unused.jsonl"},
+        "train": {"eval_steps": 25, "save_steps": 115},
+    }
+    with pytest.raises(ValueError, match="multiple"):
+        Config.model_validate(base)
+
+    base["train"]["save_steps"] = 25
+    Config.model_validate(base)

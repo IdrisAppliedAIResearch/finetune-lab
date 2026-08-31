@@ -1,0 +1,18 @@
+=== three arms ===
+
+  arm D  prior-teaming rule, no model
+
+metric                                      floor       arm D
+-------------------------------------------------------------
+precision@4 vs answer key                   0.369       0.420
+picks with a real relationship              0.369       0.420
+recall of the answer key                    0.333       0.367
+mean tier of picks (0-4)                    1.477       1.680
+hard negatives recommended (lower better)    2.510       1.686
+hard negatives rejected                     0.000       0.000
+companies named that were not offered       0.000       0.000
+answers naming anything                     1.000       0.843
+answers cut off by the token budget         0.000       0.000
+-------------------------------------------------------------
+answers in a trained template               0.000       0.000
+...in the WRONG template                    0.000       0.000

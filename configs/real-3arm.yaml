@@ -19,11 +19,35 @@ data:
   train_path: data/real_corpus/train.jsonl
   eval_path: data/real_corpus/eval.jsonl
 
-  # MEASURED with Gemma 4's own tokenizer after the context fix: mean 1106,
-  # max 2395. The jump from the earlier 2048 is the cost of showing a record
-  # for every candidate on the slate -- at 8 records for 12 candidates, four
-  # were being ranked with nothing to rank them on. 3072 truncates nothing.
-  max_seq_len: 3072
+  # MEASURED through ftlab.shared.data.encode -- the full encoded row, not the chat
+  # template alone, which undercounts by ~170 tokens of turn scaffolding.
+  # Re-measured after the record was widened to carry per-partner counts: train
+  # mean 1375, max 3552.
+  #
+  # Two earlier values were both wrong in ways worth recording. 3072 predated
+  # the widening and truncated 16 rows from the end, where the answer is. 3456
+  # came from measuring the template instead of the encoding, and dropped 8
+  # rows -- which turned out to be eight copies of a single hand-written slate
+  # example, so the run silently lost one of 25 authored open-book examples
+  # while reporting "truncated: 0". Long rows are dropped, not truncated, so a
+  # limit set too low costs whole examples and says nothing about it.
+  #
+  # 3712 fits every row and does not fit in VRAM: the backward pass on a
+  # 3552-token row wanted 3.37 GB with 3.28 GB free, twice, and
+  # expandable_segments only recovered part of the fragmentation. Peak was 22.9
+  # GB allocated against the 0.92 cap that train.py holds deliberately, so that
+  # exhausting VRAM fails loudly instead of spilling to system memory.
+  #
+  # 3328 is the compromise, and it is a real cost: it excludes two of the 25
+  # hand-written open-book examples -- the St. Jude decline and the Lewin
+  # role-inversion ranking. Both behaviours survive elsewhere in the set at
+  # lower weight. It was chosen over cutting CONTEXT_K from 13 to 11, which
+  # would have kept every example and cost far more: blind slates carry 12
+  # candidates, K=13 gives all 12 plus the prime a record, and K=11 would leave
+  # ~2 candidates per slate ranked with no record at all -- degrading the
+  # prompt that arms A and C are *measured* on while leaving B and D untouched.
+  # Training data is worth spending to keep the measurement clean.
+  max_seq_len: 3328
 
   # Open-book when records are supplied, closed-book when they are not. The
   # prompt says "if records are supplied" rather than "answer from the records"
@@ -51,12 +75,18 @@ train:
   optim: paged_adamw_8bit
   logging_steps: 5
   eval_steps: 25
-  # Aligned to the epoch boundary (1,829 examples / 16 = 115 steps) so the
-  # one-epoch model survives the run. Template collapse gets worse with
-  # exposure, and the base model's advantage was precisely the generality that
-  # more training overwrites -- so the epoch-1 checkpoint is a real candidate,
-  # not a fallback, and this way one run produces both.
-  save_steps: 115
+  # Equal to eval_steps, so every measured step is also a saved one. This used
+  # to be 115, aligned to the epoch boundary so that the one-epoch model
+  # survived the run -- a sound aim, defeated by arithmetic: eval ran every 25
+  # steps, found its best at 175, and 175 was never saved. Both fine-tuned arms
+  # were then served by step 230, which is worse on eval and carries the whole
+  # memorisation gap.
+  #
+  # With load_best_model_at_end the epoch boundary no longer needs protecting.
+  # The best checkpoint is kept wherever it falls, which is what the alignment
+  # was trying to guarantee in a way that only worked if the best model
+  # happened to land on an epoch.
+  save_steps: 25
   save_total_limit: 3
 
   gate:

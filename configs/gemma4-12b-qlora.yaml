@@ -22,7 +22,7 @@ run:
 model:
   # Must be the INSTRUCTION-TUNED checkpoint. The base model
   # (google/gemma-4-12B, and unsloth/gemma-4-12b which mirrors it) ships no chat
-  # template at all, and QRA training renders chat turns -- ftlab.model refuses
+  # template at all, and QRA training renders chat turns -- ftlab.shared.model refuses
   # to load a tokenizer without one rather than inventing a format the model was
   # never trained on. Confirm with 'ftlab inspect-model -c this-config'.
   base: google/gemma-4-12B-it

@@ -1,0 +1,48 @@
+{
+  "label": "tuned + retrieval",
+  "all": {
+    "n": 534,
+    "mean_reward": 0.5476,
+    "hit@1": 0.4195,
+    "hit@3": 0.661,
+    "hit@5": 0.7622,
+    "mrr": 0.5485,
+    "off_slate_rate": 0.0037,
+    "no_answer_rate": 0.0,
+    "truncated_rate": 0.0,
+    "random_hit@1": 0.0833,
+    "random_hit@3": 0.25,
+    "random_hit@5": 0.4167,
+    "random_mrr": 0.1903
+  },
+  "new_pairings": {
+    "n": 156,
+    "mean_reward": 0.1821,
+    "hit@1": 0.0769,
+    "hit@3": 0.2692,
+    "hit@5": 0.4038,
+    "mrr": 0.1846,
+    "off_slate_rate": 0.0064,
+    "no_answer_rate": 0.0,
+    "truncated_rate": 0.0,
+    "random_hit@1": 0.0833,
+    "random_hit@3": 0.25,
+    "random_hit@5": 0.4167,
+    "random_mrr": 0.1903
+  },
+  "prior_pairings": {
+    "n": 378,
+    "mean_reward": 0.6984,
+    "hit@1": 0.5608,
+    "hit@3": 0.8228,
+    "hit@5": 0.9101,
+    "mrr": 0.6987,
+    "off_slate_rate": 0.0026,
+    "no_answer_rate": 0.0,
+    "truncated_rate": 0.0,
+    "random_hit@1": 0.0833,
+    "random_hit@3": 0.25,
+    "random_hit@5": 0.4167,
+    "random_mrr": 0.1903
+  }
+}

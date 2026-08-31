@@ -71,7 +71,7 @@ def tokenizer() -> FakeTokenizer:
 
 @pytest.fixture
 def data_cfg():
-    from ftlab.config import DataConfig
+    from ftlab.shared.config import DataConfig
 
     return DataConfig(train_path="unused.jsonl", max_seq_len=100_000)
 
