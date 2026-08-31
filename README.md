@@ -1,118 +1,92 @@
 # finetune-lab
 
-**A test of one idea: is it better to *teach* a small AI model your data, or to just let it *look things up*?**
+**Two experiments on the same question: what is actually worth teaching a small AI model?**
 
-Teaching a model your data is called fine-tuning. It is the thing everyone assumes
-you need. The cheaper alternative is to leave the model alone and hand it the right
-documents at the moment you ask a question — the way you would hand a new hire a
-folder before a meeting.
-
-This repo builds both, on the same real data, and scores them side by side.
+You can hand a model documents at the moment you ask a question — the way you
+would hand a new hire a folder before a meeting. Or you can train the model
+itself. Training is expensive and everyone assumes you need it. This repo tests
+that assumption twice, on real data, with answers nobody made up.
 
 ---
 
-## How it was set up
+## The data, and why it is a fair test
 
-![How the experiment is built](docs/how-it-works.svg)
+Every year the U.S. government publishes which companies won contracts, and
+which smaller companies those winners hired to help. That gives a map of who has
+really worked with whom: **15,516 working relationships among 4,423 companies,
+2015 to 2025.**
 
-The data is public. Every year the U.S. government publishes which companies won
-contracts, and which smaller companies those winners hired to help. That gives a
-map of who has actually worked with whom — 1,793 firms and 3,327 working
-relationships.
+Two things keep this honest:
 
-Two things make this a fair test rather than a flattering one:
+- **Nobody wrote the answer key.** The right answer is a matter of public
+  record, so every approach can be wrong, including ours.
+- **The test questions are sealed.** They come from contracts signed *after* the
+  cutoff of everything the model was trained on. It cannot pass by remembering.
 
-- **Nobody made up the answers.** The right answer is a matter of historical
-  record. All three approaches can be wrong.
-- **The test questions were sealed off.** They are answered by records dated
-  *after* the training data ends. 71% of the correct pairings appear nowhere in
-  what the model was taught. It cannot pass by remembering.
+## Experiment one: teaching a model facts
 
-## What was run
+**[→ Supervised fine-tuning](src/ftlab/sft/README.md)**
+
+We trained the model on hand-written examples and compared it against the
+untrained model with a plain keyword search.
+
+**Training did not make the answers more accurate.** It did make them
+disciplined — short, on-topic, and finished. Use retrieval for facts, training
+for behaviour.
+
+## Experiment two: teaching a model to reason
+
+**[→ Reinforcement learning](src/ftlab/rl/README.md)**
+
+The first experiment tried to put facts *into* the model. This one leaves the
+facts outside, in the documents, and tries to improve the model's **judgement**
+about them.
+
+The test: hide a real subcontract, show the model twelve plausible candidates,
+and ask which company actually got the work. Right or wrong is history, not
+opinion, so the model can be scored automatically and trained against that
+score.
+
+**Where it stands.** The untrained model scores **exactly chance** on the half of
+the test that matters — the cases where the prime contractor had never used that
+firm before. All of its apparent skill was looking up who someone worked with
+last time. A first training run is under way; there is no result yet.
+
+---
+
+## How the code is organised
 
 | | |
 |---|---|
-| model | Gemma 4, 12 billion parameters, running locally |
-| hardware | one desktop graphics card (RTX 5090) |
-| training | 1,829 examples, 2 passes, 1h 25m |
-| electricity | about $0.13 |
-| the test | 51 sealed questions, scored three ways |
+| [`src/ftlab/shared/`](src/ftlab/shared/) | the parts both experiments use — data, model loading, the company records, the scoring |
+| [`src/ftlab/sft/`](src/ftlab/sft/README.md) | supervised fine-tuning |
+| [`src/ftlab/rl/`](src/ftlab/rl/README.md) | reinforcement learning |
 
-Nothing here touches the cloud. It runs on one machine.
-
-## What happened
-
-![Accuracy results](docs/result-accuracy.svg)
-
-**The training did not make the answers more accurate.** The untouched model with
-a plain keyword search picked better firms than the model we trained, and fell for
-fewer look-alike traps. Both beat random guessing, so both are doing real work —
-but the expensive one is not ahead.
-
-**Training alone was worse than guessing.** When we took the records away and made
-the trained model answer from memory, it scored below chance. The facts never got
-into the model. This is the clearest result in the project.
-
-![Answer quality results](docs/result-discipline.svg)
-
-**But training bought something else entirely: discipline.** The trained model
-gives an answer, sticks to the options it was handed, and stops. The stock model
-never once finished a complete answer, even when given far more room, and
-wandered off-topic about twice as often. Eight times shorter, on every question,
-forever.
-
-### So, plainly
-
-Use retrieval for facts. Use fine-tuning for behavior. That is not a compromise
-between the two results — it is what both results independently say.
-
-### What this does *not* prove
-
-Small print worth reading, because it is easy to over-claim from one experiment:
-
-- 51 test questions is a small number. A few points either way is noise.
-- Only 591 facts were available to train on. That is very little.
-- The task is genuinely hard — it asks who a company will hire *next*.
-- Different training settings were not swept. This is one recipe, not the best one.
-
-The honest headline is: **on this task, at this size, fine-tuning did not buy
-accuracy — it bought cost and control.**
-
----
+Everything runs on one desktop machine with one graphics card. Nothing touches
+the cloud.
 
 ## Reading further
 
 | | |
 |---|---|
-| [PLAN.md](PLAN.md) | the full experiment design, metrics, and limits |
-| [benchmarks/2026-08-28-real-3arm-v2/RESULT.md](benchmarks/2026-08-28-real-3arm-v2/RESULT.md) | the result in detail |
+| [AGENTS.md](AGENTS.md) | working notes — what has broken before, and how to not repeat it |
+| [PLAN.md](PLAN.md) | the experiment design in full |
 | [benchmarks/](benchmarks/) | every run kept, including the wrong ones |
 | [docs/ENGINEERING.md](docs/ENGINEERING.md) | how the training tool itself works |
 
-**A warning about the history.** Several early results in this repo were wrong,
-and the commit messages say so. The answer key once leaked into the questions. A
-length check misfired and reported 61% of answers cut off when none were. A text
-parser silently matched an invisible character and did nothing. Each was caught by
-a sanity check — replaying the known answers, or comparing against random
-guessing — which is the whole argument for having those checks.
+**A warning about the history.** Several early results here were wrong, and the
+commit messages say so. The answer key once leaked into the questions. A length
+check misfired and reported 61% of answers cut off when none were. A test set was
+built so that simply picking the smallest company beat every real method. Each
+was caught by a sanity check — replaying the known answers, or comparing against
+random guessing — which is the whole argument for having them.
 
 ## Running it
 
 ```bash
 uv sync --extra dev
-uv run ftlab doctor
-uv run ftlab train -c smoke.yaml
+uv run pytest
 ```
 
-`doctor` confirms the graphics card actually works before you spend an hour on it.
-`smoke.yaml` runs the entire pipeline on a tiny model in about a minute.
-
-To rebuild the real experiment:
-
-```bash
-uv run ftlab real-build
-uv run ftlab train -c real-3arm.yaml
-uv run ftlab arms -c real-3arm.yaml
-```
-
-Tests: `uv run pytest` — 217 of them, no graphics card or network needed.
+138 tests, no graphics card or network needed. Then see the two READMEs above for
+what each experiment runs.
