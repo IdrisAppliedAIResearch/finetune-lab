@@ -139,6 +139,82 @@ optimisation that is bad for decode. `use_cache` is already handled correctly in
 at 21%. Batch size is the cheap lever — training OOM caution does not transfer,
 since inference has no gradients or optimizer state.
 
+## An RL step is mostly generation, and that changes what "slow" looks like
+
+Measured on the 5090 during the first GRPO run, sampling every 3 s:
+
+| phase | share of a step | util | power | what it is |
+|---|---|---|---|---|
+| generation | **~75%** (73 s) | 65% | **240 W** | rollouts, one token at a time |
+| update | ~25% (25 s) | 99% | **395-490 W** | forward/backward on the LoRA |
+
+The card is quiet for three quarters of an RL run and that is correct. Decode is
+latency-bound -- memory-bandwidth utilisation sits at 17-18% while SM clocks stay
+pegged at 2880 MHz -- so it waits on reads of the 4-bit weights rather than doing
+arithmetic. Supervised fine-tuning is one continuous compute-bound stream and
+sounds like it; this is the same card on a different shape of work. **A quiet
+GPU is not a stalled one here.** Judge by the 400 W+ bursts still arriving.
+
+The corollary is where the time goes: generating *more* sequences at once is
+close to free, because the cost is per token rather than per sequence. Eight
+sequences over 2355-token prompts generate in 14.7 s; four take nearly as long.
+`generation_batch_size` is currently pinned to `num_generations` (4), which is
+the smallest legal value, so **there is known unclaimed headroom here** -- raising
+it should cut wall clock and improve the gradient estimate at the same time. It
+is pinned low because of the next section, and the two need measuring together
+rather than one being loosened on its own.
+
+## The VRAM cliff is silent, and it has now cost three afternoons
+
+The failure has no traceback, no "out of memory", and no dropped step. Everything
+logs normally and each step just takes longer.
+
+| | resident rollouts | VRAM | step time |
+|---|---|---|---|
+| supervised, before | -- | 32 GB ceiling | 12.8 s -> **204 s** |
+| GRPO, first config | 8 | 32.1 / 32.6 GB | **499 s** |
+| GRPO, fixed | 4 | 25.2 GB | **107 s** |
+
+Twice the work took thirteen times the wall clock, which is not a compute curve.
+On the supervised run the tell was power draw collapsing from ~400 W to 141 W at
+a reported 97% utilisation -- the GPU waiting on host transfers.
+
+**The trap in TRL specifically:** `generation_batch_size` defaults to
+`per_device_train_batch_size * gradient_accumulation_steps`. Raising accumulation
+to get a stable effective batch therefore multiplies how many rollouts sit in
+VRAM, silently tying memory to a knob that is about batching. Set it explicitly.
+
+What to do, in order:
+
+- Pin `generation_batch_size` explicitly; never let accumulation set it.
+- `cap_memory_fraction()` and `build_memory_guard(every=1)` from `train.py`. A
+  GRPO step is minutes, so releasing cached blocks every step is free.
+- `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, set in `cli.py` before
+  anything imports torch.
+- Keep `per_device_train_batch_size` at 1. Headroom buys step time here rather
+  than costing it: batch 2 was 16% faster and produced an allocator retry, so it
+  is not worth it.
+
+**Read `alloc_retries` in `train_stats.json` before anything else.** A retry is
+the allocator failing, freeing cached blocks and trying again -- invisible except
+that everything is slower. `nvidia-smi` reports whole-device use, ~4 GB above
+torch's own allocation, and a healthy run touched 29.5 GB, so device memory alone
+is a noisy indicator. The retry count is not.
+
+## Budgets are paid per rollout, so measure the answer length first
+
+`max_completion_length` is charged on every rollout of every step, not on the
+ones that need it. Rollouts here average 215 tokens; the budget is 320.
+
+At 700 with eight generations, one optimiser step did not finish in 22 minutes.
+Before setting a budget, run `masked-run` once and read
+`completions/mean_length` -- the baseline's 534 replies all finished well inside
+320.
+
+The same arithmetic sinks a reasoning run. With `enable_thinking: true` this base
+model does not close its channel: 14 of 16 answers hit a 1,600-token budget still
+deliberating. Raising the budget does not fix a trace that does not converge, and
+every token of it is paid on every rollout.
 ---
 
 ## Commands
